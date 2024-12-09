@@ -1,58 +1,66 @@
-from torch import Tensor
-import torch
+from typing import List
+import random
+import statistics
 
 import cast
 from cast.spec import Spec, SpecModel
 
 
-@cast.for_type(Tensor)
-class NormalTensor(Spec[Tensor]):
-    """Specification for creating weight tensors."""
+@cast.for_type(List)
+class NormalList(Spec[List[float]]):
+    """Specification for creating lists of numbers from a normal distribution."""
 
     mean: float
-    var: float
-    shape: tuple[int, ...]
+    std_dev: float
+    size: int
 
-    def build(self) -> Tensor:
-        return torch.normal(self.mean, self.var, size=self.shape)
+    def build(self) -> List[float]:
+        return [random.gauss(self.mean, self.std_dev) for _ in range(self.size)]
 
 
-@cast.for_type(Tensor)
-class UniformTensor(Spec[Tensor]):
-    """Specification for creating tensors with values from a uniform distribution."""
+@cast.for_type(List)
+class UniformList(Spec[List[float]]):
+    """Specification for creating lists with values from a uniform distribution."""
 
     low: float = 0.0
     high: float = 1.0
-    shape: tuple[int, ...]
+    size: int = 10
 
-    def build(self) -> Tensor:
-        return torch.empty(self.shape).uniform_(self.low, self.high)
+    def build(self) -> List[float]:
+        return [random.uniform(self.low, self.high) for _ in range(self.size)]
 
 
-class MyNetwork(SpecModel):
-    """Example model using spec-enabled tensor."""
+class DataContainer(SpecModel):
+    """Example model using spec-enabled list."""
 
-    weights: Tensor
+    values: List[float]
 
 
 def test_spec_build():
     """Test the spec building functionality."""
-    # Test direct tensor assignment
-    foo = torch.as_tensor([1, 2, 3])
-    model1 = MyNetwork(weights=foo)
-    print(model1)
+    # Test direct list assignment
+    direct_list = [1.0, 2.0, 3.0]
+    model1 = DataContainer(values=direct_list)
+    assert model1.values == direct_list
 
-    # Test spec-based construction
-    spec_dict = {"weights": {"mean": 0.0, "var": 0.1, "shape": [2, 3, 5]}}
-    model2 = MyNetwork.model_validate(spec_dict)
-    print(model2)
+    # Test normal distribution spec
+    spec_dict = {"values": {"mean": 0.0, "std_dev": 1.0, "size": 1000}}
+    model2 = DataContainer.model_validate(spec_dict)
+    # Check statistical properties
+    assert len(model2.values) == 1000
+    assert -0.5 < statistics.mean(model2.values) < 0.5  # roughly zero mean
+    assert 0.5 < statistics.stdev(model2.values) < 1.5  # roughly unit std dev
 
+    # Test validation error
     try:
-        MyNetwork.model_validate({"weights": {"mean": 0.0}})
+        DataContainer.model_validate({"values": {"mean": 0.0}})
+        assert False, "Should have raised ValueError"
     except ValueError:
         pass
 
-    model3 = MyNetwork.model_validate(
-        {"weights": {"low": -1.0, "high": 1.0, "shape": (3, 4)}}
+    # Test uniform distribution spec
+    model3 = DataContainer.model_validate(
+        {"values": {"low": -1.0, "high": 1.0, "size": 100}}
     )
-    print(model3)
+    assert len(model3.values) == 100
+    assert all(-1.0 <= x <= 1.0 for x in model3.values)
