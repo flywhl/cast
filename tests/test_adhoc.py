@@ -87,9 +87,9 @@ def test_spec_build():
     assert -0.5 < model2.values.mean() < 0.5  # roughly zero mean
     assert 0.5 < model2.values.std() < 1.5  # roughly unit std dev
 
-    # Test validation error
+    # Test validation error for missing required fields
     try:
-        DataContainer.model_validate({"values": {"mean": 0.0}})
+        DataContainer.model_validate({"values": {"mean": 0.0, "size": 10}})  # missing std_dev
         assert False, "Should have raised ValueError"
     except ValueError:
         pass
