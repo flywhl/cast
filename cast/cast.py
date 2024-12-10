@@ -5,7 +5,7 @@ from pydantic_core import core_schema
 T = TypeVar("T")
 
 
-class Spec(BaseModel, Generic[T]):
+class Cast(BaseModel, Generic[T]):
     """Base class for parameter specifications that can be built into instances."""
 
     def build(self) -> T:
@@ -16,53 +16,53 @@ class Spec(BaseModel, Generic[T]):
         raise NotImplementedError()
 
 
-class SpecRegistry:
-    """Global registry mapping types to their spec classes."""
+class CastRegistry:
+    """Global registry mapping types to their cast classes."""
 
-    _specs: dict[type, list[type[Spec]]] = {}
-
-    @classmethod
-    def register(cls, target_type: type, spec_type: type[Spec]):
-        """Register a spec class for a target type."""
-        if target_type not in cls._specs:
-            cls._specs[target_type] = []
-        cls._specs[target_type].append(spec_type)
+    _casts: dict[type, list[type[Cast]]] = {}
 
     @classmethod
-    def get_specs(cls, target_type: type) -> list[type[Spec]]:
-        """Get all registered specs for a type."""
-        return cls._specs.get(target_type, [])
+    def register(cls, target_type: type, cast_type: type[Cast]):
+        """Register a cast class for a target type."""
+        if target_type not in cls._casts:
+            cls._casts[target_type] = []
+        cls._casts[target_type].append(cast_type)
+
+    @classmethod
+    def get_casts(cls, target_type: type) -> list[type[Cast]]:
+        """Get all registered casts for a type."""
+        return cls._casts.get(target_type, [])
 
 
 def for_type(target_type: type):
-    """Decorator to register a spec class for a given type."""
+    """Decorator to register a cast class for a given type."""
 
-    def decorator(spec_type: type[Spec]):
-        SpecRegistry.register(target_type, spec_type)
-        return spec_type
+    def decorator(cast_type: type[Cast]):
+        CastRegistry.register(target_type, cast_type)
+        return cast_type
 
     return decorator
 
 
-class SpecModel(BaseModel):
-    """Base model class that automatically applies spec validation to fields."""
+class CastModel(BaseModel):
+    """Base model class that automatically applies cast validation to fields."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
     def try_build(cls, target_type: type, value: dict) -> Any:
-        """Try each registered spec in order until one works."""
-        specs = SpecRegistry.get_specs(target_type)
-        if not specs:
-            raise ValueError(f"No specs registered for type {target_type}")
+        """Try each registered cast in order until one works."""
+        casts = CastRegistry.get_casts(target_type)
+        if not casts:
+            raise ValueError(f"No casts registered for type {target_type}")
 
         errors = []
-        for spec_type in specs:
+        for cast_type in casts:
             try:
-                spec = spec_type.model_validate(value)
-                return spec.build()
+                cast = cast_type.model_validate(value)
+                return cast.build()
             except (ValidationError, ValueError) as e:
-                errors.append(f"{spec_type.__name__}: {str(e)}")
+                errors.append(f"{cast_type.__name__}: {str(e)}")
                 continue
             except Exception as e:
                 # Don't catch unexpected errors
@@ -70,7 +70,7 @@ class SpecModel(BaseModel):
 
         error_msg = "\n".join(f"- {err}" for err in errors)
         raise ValueError(
-            f"No compatible spec found for {target_type}. Tried:\n{error_msg}"
+            f"No compatible cast found for {target_type}. Tried:\n{error_msg}"
         )
 
     @classmethod
@@ -86,13 +86,13 @@ class SpecModel(BaseModel):
         fields_requiring_validation = {
             name: type_
             for name, type_ in hints.items()
-            if name in cls.model_fields and SpecRegistry.get_specs(type_)
+            if name in cls.model_fields and CastRegistry.get_casts(type_)
         }
 
         if not fields_requiring_validation:
             return schema
 
-        def validate_spec_fields(v: Any) -> Any:
+        def validate_cast_fields(v: Any) -> Any:
             if not isinstance(v, dict):
                 return v
 
@@ -115,5 +115,5 @@ class SpecModel(BaseModel):
             return v
 
         return core_schema.chain_schema(
-            [core_schema.no_info_plain_validator_function(validate_spec_fields), schema]
+            [core_schema.no_info_plain_validator_function(validate_cast_fields), schema]
         )
