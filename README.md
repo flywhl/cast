@@ -20,6 +20,7 @@ _Cast_ is still proof-of-concept. Please try the `main` branch, but don't use th
 import cast
 from cast import Cast, CastModel
 from torch import Tensor
+import torch
 import yaml
 
 # 1. Create and register some useful parameterisations
@@ -33,7 +34,7 @@ class NormalTensor(Cast[Tensor]):
     size: tuple[int, ...]
 
     def build(self) -> Tensor:
-        ...
+        return torch.normal(self.mean, self.std, size=self.size)
 
 @cast.for_type(Tensor)
 class UniformTensor(Cast[Tensor]):
@@ -42,7 +43,7 @@ class UniformTensor(Cast[Tensor]):
     size: tuple[int, ...]
 
     def build(self) -> Tensor:
-      ...
+      return torch.empty(self.size).uniform_(self.low, self.high)
 
 
 # 2. Write pydantic models using `CastModel` base class
