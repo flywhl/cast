@@ -14,12 +14,15 @@
 
 ```python
 import cast
-from cast import Spec, SpecModel
+from cast import Cast, CastModel
 from torch import Tensor
 import yaml
 
+# 1. Create and register some useful parameterisations
+#       (or soon install from PyPi, i.e. `rye add cast-torch`)
+
 @cast.for_type(Tensor)
-class NormalTensor(Spec[Tensor]):
+class NormalTensor(Cast[Tensor]):
 
     mean: float
     std: float
@@ -29,7 +32,7 @@ class NormalTensor(Spec[Tensor]):
         ...
 
 @cast.for_type(Tensor)
-class UniformTensor(Spec[Tensor]):
+class UniformTensor(Cast[Tensor]):
     low: float
     high: float
     size: tuple[int, ...]
@@ -37,10 +40,15 @@ class UniformTensor(Spec[Tensor]):
     def build(self) -> Tensor:
       ...
 
+
+# 2. Write pydantic models using `CastModel` base class
+
 class MyModel(CastModel):
     normal_tensor: Tensor
     uniform_tensor: Tensor
 
+
+# 3. Validate from YAML files that specify the parameterisation
 
 some_yaml = """normal_tensor:
     mean: 0.0
@@ -51,6 +59,8 @@ uniform_tensor:
     std: 1.0
     size: [3, 5]
 """
+
+# 4. Receive objects built from the parameterisations.
 
 my_model = MyModel.model_validate(yaml.safe_load(some_yaml))
 assert isinstance(my_model.normal_tensor, Tensor)
