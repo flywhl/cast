@@ -6,6 +6,10 @@
 </p>
 <br/>
 
+## Note
+
+_Cast_ is still proof-of-concept. Please try the `main` branch, but don't use the library for production work.
+
 ## Installation
 
 * `rye add cast --git https://github.com/flywhl/cast`
