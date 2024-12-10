@@ -7,7 +7,6 @@ authors = [
 ]
 dependencies = [
     "pydantic>=2.10.3",
-    "torch>=2.5.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.12"

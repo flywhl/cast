@@ -1,14 +1,14 @@
-from dataclasses import dataclass
 import random
 import statistics
 from typing import Sequence, Union, overload
+
+from pydantic import BaseModel
 
 import cast
 from cast.spec import Spec, SpecModel
 
 
-@dataclass
-class Tensor:
+class Tensor(BaseModel):
     """A simple mock tensor class that wraps a list of numbers.
 
     We use this because we don't want to take torch as a dependency.
@@ -18,7 +18,7 @@ class Tensor:
 
     @classmethod
     def from_list(cls, values: Sequence[float]) -> "Tensor":
-        return cls(list(values))
+        return cls(data=list(values))
 
     def __len__(self) -> int:
         return len(self.data)
@@ -29,9 +29,6 @@ class Tensor:
     def std(self) -> float:
         return statistics.stdev(self.data)
 
-    def __iter__(self):
-        return iter(self.data)
-
     @overload
     def __getitem__(self, idx: int) -> float: ...
 
@@ -40,7 +37,7 @@ class Tensor:
 
     def __getitem__(self, idx: Union[int, slice]) -> Union[float, "Tensor"]:
         if isinstance(idx, slice):
-            return Tensor(self.data[idx])
+            return Tensor(data=self.data[idx])
         return self.data[idx]
 
 
@@ -53,7 +50,9 @@ class NormalTensor(Spec[Tensor]):
     size: int
 
     def build(self) -> Tensor:
-        return Tensor([random.gauss(self.mean, self.std_dev) for _ in range(self.size)])
+        return Tensor(
+            data=[random.gauss(self.mean, self.std_dev) for _ in range(self.size)]
+        )
 
 
 @cast.for_type(Tensor)
@@ -65,7 +64,9 @@ class UniformTensor(Spec[Tensor]):
     size: int
 
     def build(self) -> Tensor:
-        return Tensor([random.uniform(self.low, self.high) for _ in range(self.size)])
+        return Tensor(
+            data=[random.uniform(self.low, self.high) for _ in range(self.size)]
+        )
 
 
 class DataContainer(SpecModel):
