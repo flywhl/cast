@@ -5,7 +5,7 @@ from typing import Sequence, Union, overload
 from pydantic import BaseModel
 
 import cast
-from cast.spec import Spec, SpecModel
+from cast import Cast, CastModel
 
 
 class Tensor(BaseModel):
@@ -42,8 +42,8 @@ class Tensor(BaseModel):
 
 
 @cast.for_type(Tensor)
-class NormalTensor(Spec[Tensor]):
-    """Specification for creating tensors from a normal distribution."""
+class NormalTensor(Cast[Tensor]):
+    """Cast for creating tensors from a normal distribution."""
 
     mean: float
     std_dev: float
@@ -56,8 +56,8 @@ class NormalTensor(Spec[Tensor]):
 
 
 @cast.for_type(Tensor)
-class UniformTensor(Spec[Tensor]):
-    """Specification for creating tensors with values from a uniform distribution."""
+class UniformTensor(Cast[Tensor]):
+    """Cast for creating tensors with values from a uniform distribution."""
 
     low: float
     high: float
@@ -69,23 +69,23 @@ class UniformTensor(Spec[Tensor]):
         )
 
 
-class DataContainer(SpecModel):
-    """Example model using spec-enabled tensor."""
+class DataContainer(CastModel):
+    """Example model using cast-enabled tensor."""
 
     values: Tensor
 
 
-def test_spec_build():
-    """Test the spec building functionality."""
+def test_cast_build():
+    """Test the cast building functionality."""
     # Test direct tensor assignment
     direct_tensor = Tensor.from_list([1.0, 2.0, 3.0])
     model1 = DataContainer(values=direct_tensor)
     assert len(model1.values) == 3
-    assert list(model1.values) == [1.0, 2.0, 3.0]
+    assert list(model1.values.data) == [1.0, 2.0, 3.0]
 
-    # Test normal distribution spec
-    spec_dict = {"values": {"mean": 0.0, "std_dev": 1.0, "size": 1000}}
-    model2 = DataContainer.model_validate(spec_dict)
+    # Test normal distribution cast
+    cast_dict = {"values": {"mean": 0.0, "std_dev": 1.0, "size": 1000}}
+    model2 = DataContainer.model_validate(cast_dict)
     # Check statistical properties
     assert len(model2.values) == 1000
 
@@ -96,7 +96,7 @@ def test_spec_build():
     except ValueError:
         pass
 
-    # Test uniform distribution spec
+    # Test uniform distribution cast
     model3 = DataContainer.model_validate(
         {"values": {"low": -1.0, "high": 1.0, "size": 100}}
     )

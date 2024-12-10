@@ -1,3 +1,3 @@
-from cast.spec import for_type
+from cast.cast import for_type, Cast, CastModel
 
-__all__ = ["for_type"]
+__all__ = ["for_type", "Cast", "CastModel"]
