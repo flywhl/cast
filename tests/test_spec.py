@@ -2,7 +2,7 @@ import random
 import statistics
 from typing import Sequence, Union, overload
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import cast
 from cast import Cast, CastModel
@@ -47,7 +47,7 @@ class NormalTensor(Cast[Tensor]):
 
     mean: float
     std_dev: float
-    size: int
+    size: int = Field(gt=0, description="Size must be a positive integer")
 
     def build(self) -> Tensor:
         return Tensor(
@@ -61,7 +61,7 @@ class UniformTensor(Cast[Tensor]):
 
     low: float
     high: float
-    size: int
+    size: int = Field(gt=0, description="Size must be a positive integer")
 
     def build(self) -> Tensor:
         return Tensor(
