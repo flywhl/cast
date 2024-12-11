@@ -96,6 +96,65 @@ def test_cast_build():
     except ValueError:
         pass
 
+
+class TensorList(CastModel):
+    """A model containing a list of tensors."""
+    tensors: list[Tensor]
+
+
+def test_list_of_castmodels():
+    """Test handling lists of fields that use casts."""
+    # Test list of normal distributions
+    normal_list_data = {
+        "tensors": [
+            {"mean": 0.0, "std_dev": 1.0, "size": 10},
+            {"mean": 5.0, "std_dev": 2.0, "size": 20},
+            {"mean": -5.0, "std_dev": 0.5, "size": 30}
+        ]
+    }
+    
+    model = TensorList.model_validate(normal_list_data)
+    assert len(model.tensors) == 3
+    assert len(model.tensors[0]) == 10
+    assert len(model.tensors[1]) == 20
+    assert len(model.tensors[2]) == 30
+    
+    # Verify statistical properties of each tensor
+    assert -0.5 < model.tensors[0].mean() < 0.5  # mean ≈ 0.0
+    assert 4.5 < model.tensors[1].mean() < 5.5   # mean ≈ 5.0
+    assert -5.5 < model.tensors[2].mean() < -4.5 # mean ≈ -5.0
+    
+    # Test mixed normal and uniform distributions in the same list
+    mixed_list_data = {
+        "tensors": [
+            {"mean": 0.0, "std_dev": 1.0, "size": 100},  # Normal
+            {"low": 0.0, "high": 1.0, "size": 100},      # Uniform
+            {"mean": 2.0, "std_dev": 0.5, "size": 100}   # Normal
+        ]
+    }
+    
+    model = TensorList.model_validate(mixed_list_data)
+    assert len(model.tensors) == 3
+    assert all(len(t) == 100 for t in model.tensors)
+    
+    # Check uniform distribution bounds
+    assert all(0.0 <= x <= 1.0 for x in model.tensors[1].data)
+    
+    # Test validation with invalid items in list
+    invalid_list_data = {
+        "tensors": [
+            {"mean": 0.0, "std_dev": 1.0, "size": 10},
+            {"mean": 0.0, "size": 20},  # Missing std_dev
+            {"low": 0.0, "high": 1.0, "size": 30}
+        ]
+    }
+    
+    try:
+        TensorList.model_validate(invalid_list_data)
+        assert False, "Should have raised ValueError for invalid tensor spec"
+    except ValueError:
+        pass
+
     # Test uniform distribution cast
     model3 = DataContainer.model_validate(
         {"values": {"low": -1.0, "high": 1.0, "size": 100}}
