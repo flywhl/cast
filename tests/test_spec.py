@@ -227,3 +227,59 @@ def test_cast_type_inference():
     
     # Range check for uniform distribution
     assert all(0.0 <= x <= 1.0 for x in model.secondary.tensor.data)
+
+
+class TensorWrapper(CastModel):
+    """A simple CastModel that will be nested in a BaseModel."""
+    tensor: Tensor
+
+
+class ConfigWithTensor(BaseModel):
+    """A BaseModel that contains a CastModel."""
+    name: str
+    description: str | None = None
+    data: TensorWrapper
+
+
+def test_castmodel_in_basemodel():
+    """Test a CastModel nested inside a regular Pydantic BaseModel."""
+    config_data = {
+        "name": "test_config",
+        "description": "Testing CastModel inside BaseModel",
+        "data": {
+            "tensor": {
+                "mean": 0.0,
+                "std_dev": 1.0,
+                "size": 50
+            }
+        }
+    }
+    
+    model = ConfigWithTensor.model_validate(config_data)
+    
+    # Verify BaseModel fields
+    assert model.name == "test_config"
+    assert model.description == "Testing CastModel inside BaseModel"
+    
+    # Verify the nested CastModel was properly processed
+    assert len(model.data.tensor) == 50
+    assert -0.5 < model.data.tensor.mean() < 0.5  # Should be close to 0.0
+    assert 0.8 < model.data.tensor.std() < 1.2    # Should be close to 1.0
+    
+    # Test validation with invalid nested cast
+    invalid_data = {
+        "name": "test_invalid",
+        "data": {
+            "tensor": {
+                "mean": 0.0,
+                "std_dev": 1.0,
+                "size": -10  # Invalid negative size
+            }
+        }
+    }
+    
+    try:
+        ConfigWithTensor.model_validate(invalid_data)
+        assert False, "Should have raised ValueError for negative size"
+    except ValueError:
+        pass
