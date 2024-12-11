@@ -5,31 +5,20 @@ from pydantic_core import core_schema
 T = TypeVar("T")
 
 
-class Cast(BaseModel, Generic[T]):
-    """Base class for parameter specifications that can be built into instances."""
-
-    def build(self) -> T:
-        raise NotImplementedError
-
-    @property
-    def fields(self):
-        raise NotImplementedError()
-
-
 class CastRegistry:
     """Global registry mapping types to their cast classes."""
 
-    _casts: dict[type, list[type[Cast]]] = {}
+    _casts: dict[type, list[type["Cast"]]] = {}
 
     @classmethod
-    def register(cls, target_type: type, cast_type: type[Cast]):
+    def register(cls, target_type: type, cast_type: type["Cast"]):
         """Register a cast class for a target type."""
         if target_type not in cls._casts:
             cls._casts[target_type] = []
         cls._casts[target_type].append(cast_type)
 
     @classmethod
-    def get_casts(cls, target_type: type) -> list[type[Cast]]:
+    def get_casts(cls, target_type: type) -> list[type["Cast"]]:
         """Get all registered casts for a type."""
         return cls._casts.get(target_type, [])
 
@@ -37,7 +26,7 @@ class CastRegistry:
 def for_type(target_type: type):
     """Decorator to register a cast class for a given type."""
 
-    def decorator(cast_type: type[Cast]):
+    def decorator(cast_type: type["Cast"]):
         CastRegistry.register(target_type, cast_type)
         return cast_type
 
@@ -66,13 +55,13 @@ class CastModel(BaseModel):
         }
 
     @staticmethod
-    def _validate_list_field(field_name: str, field_value: list, list_type: type) -> list:
+    def _validate_list_field(
+        field_name: str, field_value: list, list_type: type
+    ) -> list:
         """Validate and build a list field."""
         try:
             return [
-                CastModel.try_build(list_type, item)
-                if isinstance(item, dict)
-                else item
+                CastModel.try_build(list_type, item) if isinstance(item, dict) else item
                 for item in field_value
             ]
         except ValueError as e:
@@ -81,10 +70,14 @@ class CastModel(BaseModel):
     @staticmethod
     def _get_raw_type(field_type: type) -> type:
         """Get the raw type without generic parameters."""
-        return field_type.__origin__ if hasattr(field_type, "__origin__") else field_type
+        return (
+            field_type.__origin__ if hasattr(field_type, "__origin__") else field_type
+        )
 
     @staticmethod
-    def validate_cast_fields(v: Any, fields_requiring_validation: dict[str, Any], hints: dict[str, Any]) -> Any:
+    def validate_cast_fields(
+        v: Any, fields_requiring_validation: dict[str, Any], hints: dict[str, Any]
+    ) -> Any:
         """Validate and build cast fields in a model."""
         if not isinstance(v, dict):
             return v
@@ -151,15 +144,28 @@ class CastModel(BaseModel):
 
         hints = get_type_hints(cls)
         fields_requiring_validation = cls._get_fields_requiring_validation(hints)
-        
+
         if not fields_requiring_validation:
             return schema
 
         return core_schema.chain_schema(
             [
                 core_schema.no_info_plain_validator_function(
-                    lambda v: cls.validate_cast_fields(v, fields_requiring_validation, hints)
+                    lambda v: cls.validate_cast_fields(
+                        v, fields_requiring_validation, hints
+                    )
                 ),
                 schema,
             ]
         )
+
+
+class Cast(CastModel, Generic[T]):
+    """Base class for parameter specifications that can be built into instances."""
+
+    def build(self) -> T:
+        raise NotImplementedError
+
+    @property
+    def fields(self):
+        raise NotImplementedError()
