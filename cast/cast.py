@@ -85,11 +85,21 @@ class CastModel(BaseModel):
         hints = get_type_hints(cls)
         print(_source_type)
         print(hints.items())
-        fields_requiring_validation = {
-            name: type_
-            for name, type_ in hints.items()
-            if name in cls.model_fields and CastRegistry.get_casts(type_)
-        }
+        fields_requiring_validation = {}
+        for name, type_ in hints.items():
+            if name not in cls.model_fields:
+                continue
+                
+            # Check if type directly has casts
+            if CastRegistry.get_casts(type_):
+                fields_requiring_validation[name] = type_
+                continue
+                
+            # Check if it's a list type and its element type has casts
+            if hasattr(type_, "__origin__") and type_.__origin__ is list:
+                element_type = get_args(type_)[0]
+                if CastRegistry.get_casts(element_type):
+                    fields_requiring_validation[name] = type_
 
         if not fields_requiring_validation:
             return schema
