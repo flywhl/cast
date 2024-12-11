@@ -79,11 +79,12 @@ class CastModel(BaseModel):
         _source_type: Any,
         _handler: GetCoreSchemaHandler,
     ) -> core_schema.CoreSchema:
-        print("???")
         schema = super().__get_pydantic_core_schema__(_source_type, _handler)
 
         # Get registered types from the model's annotations
         hints = get_type_hints(cls)
+        print(_source_type)
+        print(hints.items())
         fields_requiring_validation = {
             name: type_
             for name, type_ in hints.items()
