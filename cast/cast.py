@@ -106,6 +106,21 @@ class CastModel(BaseModel):
                 if isinstance(field_value, field_type):
                     continue
 
+                # Handle lists of cast types
+                if isinstance(field_value, list):
+                    # Get the type parameter of the list
+                    from typing import get_args
+                    list_type = get_args(hints[field_name])[0]
+                    if CastRegistry.get_casts(list_type):
+                        try:
+                            v[field_name] = [
+                                cls.try_build(list_type, item) if isinstance(item, dict) else item
+                                for item in field_value
+                            ]
+                        except ValueError as e:
+                            raise ValueError(f"Error building item in {field_name}: {str(e)}")
+                    continue
+
                 if isinstance(field_value, dict):
                     try:
                         v[field_name] = cls.try_build(field_type, field_value)
