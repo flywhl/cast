@@ -94,11 +94,14 @@ class CastModel(BaseModel):
             return schema
 
         def validate_cast_fields(v: Any) -> Any:
+            # Handle lists directly
+            if isinstance(v, list):
+                return v
+
             if not isinstance(v, dict):
                 return v
 
             for field_name, field_type in fields_requiring_validation.items():
-                print(f"{field_name}")
                 if field_name not in v:
                     continue
 
@@ -110,9 +113,6 @@ class CastModel(BaseModel):
 
                 # Handle lists of cast types
                 if isinstance(field_value, list):
-                    print(f"{field_name} is a list")
-                    # Get the type parameter of the list
-
                     list_type = get_args(hints[field_name])[0]
                     if CastRegistry.get_casts(list_type):
                         try:
