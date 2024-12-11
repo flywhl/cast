@@ -114,12 +114,31 @@ class CastModel(BaseModel):
 
                 field_value = v[field_name]
 
-                # Skip if value is already of the target type
-                if isinstance(field_value, field_type):
-                    continue
-
-                # Handle lists of cast types
+                # Handle lists of cast types first
                 if isinstance(field_value, list):
+                    # Get the element type for list fields
+                    list_type = get_args(hints[field_name])[0]
+                    if CastRegistry.get_casts(list_type):
+                        try:
+                            v[field_name] = [
+                                cls.try_build(list_type, item)
+                                if isinstance(item, dict)
+                                else item
+                                for item in field_value
+                            ]
+                        except ValueError as e:
+                            raise ValueError(
+                                f"Error building item in {field_name}: {str(e)}"
+                            )
+                    continue
+            
+                # For non-list fields, skip if value is already of the target type
+                # Get the raw type without generic parameters
+                raw_type = field_type
+                if hasattr(field_type, "__origin__"):
+                    raw_type = field_type.__origin__
+                if isinstance(field_value, raw_type):
+                    continue
                     list_type = get_args(hints[field_name])[0]
                     if CastRegistry.get_casts(list_type):
                         try:
