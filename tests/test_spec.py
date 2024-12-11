@@ -101,3 +101,129 @@ def test_cast_build():
         {"values": {"low": -1.0, "high": 1.0, "size": 100}}
     )
     assert len(model3.values) == 100
+
+
+class NestedConfig(BaseModel):
+    """A regular Pydantic model for configuration."""
+    name: str
+    scale: float
+
+
+class NestedTensorContainer(CastModel):
+    """A CastModel that will be nested inside another CastModel."""
+    config: NestedConfig
+    tensor: Tensor
+
+
+class ComplexDataContainer(CastModel):
+    """A CastModel containing both regular fields and nested CastModels."""
+    name: str
+    primary: Tensor
+    secondary: NestedTensorContainer
+
+
+def test_nested_cast_models():
+    """Test nested CastModels with mixed BaseModel types."""
+    # Test nested structure with both normal and cast fields
+    nested_data = {
+        "name": "test_complex",
+        "primary": {
+            "mean": 0.0,
+            "std_dev": 1.0,
+            "size": 50
+        },
+        "secondary": {
+            "config": {
+                "name": "nested",
+                "scale": 2.0
+            },
+            "tensor": {
+                "low": -1.0,
+                "high": 1.0,
+                "size": 30
+            }
+        }
+    }
+    
+    model = ComplexDataContainer.model_validate(nested_data)
+    
+    # Verify top level fields
+    assert model.name == "test_complex"
+    assert len(model.primary) == 50
+    
+    # Verify nested structure
+    assert model.secondary.config.name == "nested"
+    assert model.secondary.config.scale == 2.0
+    assert len(model.secondary.tensor) == 30
+
+
+def test_mixed_model_validation():
+    """Test validation behavior with mixed model types."""
+    # Test validation with missing nested fields
+    invalid_data = {
+        "name": "test_invalid",
+        "primary": {"mean": 0.0, "std_dev": 1.0, "size": 50},
+        "secondary": {
+            "config": {"name": "nested"},  # Missing scale
+            "tensor": {"low": -1.0, "high": 1.0, "size": 30}
+        }
+    }
+    
+    try:
+        ComplexDataContainer.model_validate(invalid_data)
+        assert False, "Should have raised ValueError for missing scale"
+    except ValueError:
+        pass
+
+    # Test validation with invalid cast parameters
+    invalid_cast_data = {
+        "name": "test_invalid",
+        "primary": {"mean": 0.0, "std_dev": 1.0, "size": -50},  # Invalid size
+        "secondary": {
+            "config": {"name": "nested", "scale": 2.0},
+            "tensor": {"low": -1.0, "high": 1.0, "size": 30}
+        }
+    }
+    
+    try:
+        ComplexDataContainer.model_validate(invalid_cast_data)
+        assert False, "Should have raised ValueError for negative size"
+    except ValueError:
+        pass
+
+
+def test_cast_type_inference():
+    """Test that the cast system correctly infers and applies different cast types."""
+    # Test that both NormalTensor and UniformTensor casts work in the same model
+    mixed_data = {
+        "name": "test_mixed",
+        "primary": {
+            "mean": 0.0,
+            "std_dev": 1.0,
+            "size": 100
+        },
+        "secondary": {
+            "config": {
+                "name": "nested",
+                "scale": 2.0
+            },
+            "tensor": {
+                "low": 0.0,
+                "high": 1.0,
+                "size": 100
+            }
+        }
+    }
+    
+    model = ComplexDataContainer.model_validate(mixed_data)
+    
+    # Verify that different cast types were correctly applied
+    assert len(model.primary) == 100
+    assert len(model.secondary.tensor) == 100
+    
+    # Statistical properties check for normal distribution
+    assert -0.5 < model.primary.mean() < 0.5  # Should be close to 0.0
+    assert 0.8 < model.primary.std() < 1.2    # Should be close to 1.0
+    
+    # Range check for uniform distribution
+    assert all(0.0 <= x <= 1.0 for x in model.secondary.tensor.data)
