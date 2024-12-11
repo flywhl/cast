@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic, Any, get_type_hints
+from typing import TypeVar, Generic, Any, get_type_hints, get_args
 from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
 
@@ -79,6 +79,7 @@ class CastModel(BaseModel):
         _source_type: Any,
         _handler: GetCoreSchemaHandler,
     ) -> core_schema.CoreSchema:
+        print("???")
         schema = super().__get_pydantic_core_schema__(_source_type, _handler)
 
         # Get registered types from the model's annotations
@@ -97,6 +98,7 @@ class CastModel(BaseModel):
                 return v
 
             for field_name, field_type in fields_requiring_validation.items():
+                print(f"{field_name}")
                 if field_name not in v:
                     continue
 
@@ -108,17 +110,22 @@ class CastModel(BaseModel):
 
                 # Handle lists of cast types
                 if isinstance(field_value, list):
+                    print(f"{field_name} is a list")
                     # Get the type parameter of the list
-                    from typing import get_args
+
                     list_type = get_args(hints[field_name])[0]
                     if CastRegistry.get_casts(list_type):
                         try:
                             v[field_name] = [
-                                cls.try_build(list_type, item) if isinstance(item, dict) else item
+                                cls.try_build(list_type, item)
+                                if isinstance(item, dict)
+                                else item
                                 for item in field_value
                             ]
                         except ValueError as e:
-                            raise ValueError(f"Error building item in {field_name}: {str(e)}")
+                            raise ValueError(
+                                f"Error building item in {field_name}: {str(e)}"
+                            )
                     continue
 
                 if isinstance(field_value, dict):
