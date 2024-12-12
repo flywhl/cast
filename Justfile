@@ -8,10 +8,10 @@ test-s:
     @pytest -s
 
 ruff:
-    rye run ruff format cast
+    uv run ruff format cast
 
 pyright:
-    rye run pyright cast
+    uv run pyright cast
 
 lint:
     just ruff
