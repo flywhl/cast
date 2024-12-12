@@ -15,28 +15,23 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
+    - name: Install just
+      uses: taiki-e/install-action@just
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install uv
-      run: pip install uv
-
-    - name: Install just
-      uses: taiki-e/install-action@just
-
-    - name: Setup uv cache
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/uv
-        key: ${{ runner.os }}-python-${{ matrix.python-version }}-uv-${{ hashFiles('uv.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-python-${{ matrix.python-version }}-uv-
-
     - name: Install dependencies
-      run: uv pip install -r uv.lock
+      run: uv sync --all-extras --dev
 
     - name: Lint
       run: just lint
