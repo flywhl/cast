@@ -2,10 +2,10 @@ default:
     @just --list
 
 test:
-    @pytest
+    @uv run pytest
 
 test-s:
-    @pytest -s
+    @uv run pytest -s
 
 ruff:
     uv run ruff format cast
