@@ -1,9 +1,9 @@
 repos:
   - repo: local
     hooks:
-      - id: tox
-        name: tox
-        entry: rye run tox
+      - id: test
+        name: test
+        entry: rye run pytest
         language: system
         pass_filenames: false
         stages: [pre-commit]
