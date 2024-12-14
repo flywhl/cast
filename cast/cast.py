@@ -1,3 +1,4 @@
+import importlib
 from typing import TypeVar, Generic, Any, get_type_hints, get_args
 from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
@@ -74,9 +75,26 @@ class CastModel(BaseModel):
             field_type.__origin__ if hasattr(field_type, "__origin__") else field_type
         )
 
-    @staticmethod
+    @classmethod
+    def _process_import_reference(cls, path: str) -> Any:
+        module_path, attr = path.rsplit(".", 1)
+        try:
+            module = importlib.import_module(module_path)
+        except ImportError as e:
+            raise ValueError(path) from e
+        return getattr(module, attr)
+
+    @classmethod
+    def _process_reference(cls, reference: str) -> Any:
+        ref_type, ref_value = reference.split(":")
+        if ref_type == "import":
+            return cls._process_import_reference(ref_value)
+        else:
+            raise ValueError(f"Unknown reference type: {ref_type}")
+
+    @classmethod
     def validate_cast_fields(
-        v: Any, fields_requiring_validation: dict[str, Any], hints: dict[str, Any]
+        cls, v: Any, fields_requiring_validation: dict[str, Any], hints: dict[str, Any]
     ) -> Any:
         """Validate and build cast fields in a model."""
         if not isinstance(v, dict):
@@ -87,6 +105,9 @@ class CastModel(BaseModel):
                 continue
 
             field_value = v[field_name]
+
+            if isinstance(field_value, str) and field_value.startswith("@"):
+                v[field_name] = cls._process_reference(field_value[1:])
 
             # Handle lists of cast types first
             if isinstance(field_value, list):
