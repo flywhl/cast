@@ -300,6 +300,43 @@ class ConfigWithTensor(BaseModel):
     data: TensorWrapper
 
 
+def test_import_reference(monkeypatch):
+    """Test the @import reference functionality."""
+    # Mock module with test object
+    class MockModule:
+        test_value = Tensor.from_list([1.0, 2.0, 3.0])
+
+    def mock_import_module(name):
+        if name == "test.module":
+            return MockModule
+        raise ImportError(f"No module named '{name}'")
+
+    # Patch importlib.import_module
+    monkeypatch.setattr("importlib.import_module", mock_import_module)
+
+    # Test successful import
+    data = {"values": "@import:test.module.test_value"}
+    model = DataContainer.model_validate(data)
+    assert isinstance(model.values, Tensor)
+    assert model.values.data == [1.0, 2.0, 3.0]
+
+    # Test invalid module
+    data = {"values": "@import:nonexistent.module.value"}
+    try:
+        DataContainer.model_validate(data)
+        assert False, "Should have raised ValueError for invalid import"
+    except ValueError as e:
+        assert "No module named 'nonexistent.module'" in str(e)
+
+    # Test invalid reference format
+    data = {"values": "@invalid:something"}
+    try:
+        DataContainer.model_validate(data)
+        assert False, "Should have raised ValueError for invalid reference type"
+    except ValueError as e:
+        assert "Unknown reference type: invalid" in str(e)
+
+
 def test_castmodel_in_basemodel():
     """Test a CastModel nested inside a regular Pydantic BaseModel."""
     config_data = {
