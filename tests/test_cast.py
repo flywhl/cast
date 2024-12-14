@@ -300,19 +300,18 @@ class ConfigWithTensor(BaseModel):
     data: TensorWrapper
 
 
-def test_import_reference(monkeypatch):
+def test_import_reference(mocker):
     """Test the @import reference functionality."""
     # Mock module with test object
-    class MockModule:
-        test_value = Tensor.from_list([1.0, 2.0, 3.0])
-
-    def mock_import_module(name):
-        if name == "test.module":
-            return MockModule
-        raise ImportError(f"No module named '{name}'")
-
-    # Patch importlib.import_module
-    monkeypatch.setattr("importlib.import_module", mock_import_module)
+    mock_module = mocker.Mock()
+    mock_module.test_value = Tensor.from_list([1.0, 2.0, 3.0])
+    
+    # Setup mock for importlib.import_module
+    mock_import = mocker.patch("importlib.import_module")
+    mock_import.side_effect = lambda name: (
+        mock_module if name == "test.module" 
+        else ImportError(f"No module named '{name}'")
+    )
 
     # Test successful import
     data = {"values": "@import:test.module.test_value"}
