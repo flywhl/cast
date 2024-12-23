@@ -17,12 +17,21 @@ class ValidationContext:
     @contextmanager
     def root_data(cls, data: dict):
         """Store the root data during validation."""
-        if not hasattr(cls._context, "data"):
+        # Initialize depth counter if needed
+        if not hasattr(cls._context, "depth"):
+            cls._context.depth = 0
+            
+        # Set data only at top level
+        if cls._context.depth == 0 and not hasattr(cls._context, "data"):
             cls._context.data = data
+            
+        cls._context.depth += 1
         try:
             yield
         finally:
-            if hasattr(cls._context, "data"):
+            cls._context.depth -= 1
+            # Only clean up data when unwinding the top level
+            if cls._context.depth == 0 and hasattr(cls._context, "data"):
                 del cls._context.data
 
     @classmethod
