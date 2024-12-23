@@ -225,6 +225,15 @@ class CastModel(BaseModel):
             ]
         )
 
+    @classmethod
+    def model_validate(cls, obj: Any, *args, **kwargs):
+        """Validate and build cast fields in a model."""
+        if not isinstance(obj, dict):
+            return obj
+            
+        with ValidationContext.root_data(obj):
+            return super().model_validate(obj, *args, **kwargs)
+
 
 class Cast(CastModel, Generic[T]):
     """Base class for parameter specifications that can be built into instances."""
