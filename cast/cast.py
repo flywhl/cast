@@ -20,11 +20,11 @@ class ValidationContext:
         # Initialize depth counter if needed
         if not hasattr(cls._context, "depth"):
             cls._context.depth = 0
-            
+
         # Set data only at top level
         if cls._context.depth == 0 and not hasattr(cls._context, "data"):
             cls._context.data = data
-            
+
         cls._context.depth += 1
         try:
             yield
@@ -42,7 +42,6 @@ class ValidationContext:
     @classmethod
     def get_nested_value(cls, path: str) -> Any:
         """Get a value from the root data using dot notation path."""
-        print(f"Getting {path}")
         data = cls.get_root_data()
         if not data:
             raise ValueError(
@@ -250,11 +249,9 @@ class CastModel(BaseModel):
     def model_validate(cls, obj: Any, *args, **kwargs):
         """Validate and build cast fields in a model."""
         if not isinstance(obj, dict):
-            print("Skipping ValidationContext.")
             return super().model_validate(obj, *args, **kwargs)
 
         with ValidationContext.root_data(obj):
-            print("Using ValidationContext.")
             return super().model_validate(obj, *args, **kwargs)
 
 
