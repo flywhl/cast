@@ -21,7 +21,8 @@ class ValidationContext:
         try:
             yield
         finally:
-            del cls._context.data
+            if hasattr(cls._context, 'data'):
+                del cls._context.data
 
     @classmethod
     def get_root_data(cls) -> dict:
@@ -138,8 +139,10 @@ class CastModel(BaseModel):
         if not isinstance(v, dict):
             return v
 
-        # for field_name, field_type in fields_requiring_validation.items():
+        # Process only fields that are part of the model
         for field_name, field_value in v.items():
+            if field_name not in hints:
+                continue
             field_type = hints[field_name]
             requires_cast = field_name in fields_requiring_validation
             requires_resolution = (
