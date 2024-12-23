@@ -229,7 +229,7 @@ class CastModel(BaseModel):
     def model_validate(cls, obj: Any, *args, **kwargs):
         """Validate and build cast fields in a model."""
         if not isinstance(obj, dict):
-            return obj
+            return super().model_validate(obj, *args, **kwargs)
             
         with ValidationContext.root_data(obj):
             return super().model_validate(obj, *args, **kwargs)
