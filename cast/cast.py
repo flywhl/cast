@@ -40,10 +40,10 @@ class CastModel(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @staticmethod
-    def _get_fields_requiring_validation(hints: dict[str, Any]) -> dict[str, Any]:
+    def _get_fields_requiring_validation(hints: dict[str, Any]) -> set[str]:
         """Get fields that need cast validation."""
         return {
-            name: type_
+            name
             for name, type_ in hints.items()
             if (
                 CastRegistry.get_casts(type_)
@@ -94,40 +94,47 @@ class CastModel(BaseModel):
 
     @classmethod
     def validate_cast_fields(
-        cls, v: Any, fields_requiring_validation: dict[str, Any], hints: dict[str, Any]
+        cls, v: Any, fields_requiring_validation: set[str], hints: dict[str, Any]
     ) -> Any:
         """Validate and build cast fields in a model."""
         if not isinstance(v, dict):
             return v
 
-        for field_name, field_type in fields_requiring_validation.items():
-            if field_name not in v:
+        # for field_name, field_type in fields_requiring_validation.items():
+        for field_name, field_value in v.items():
+            field_type = hints[field_name]
+            requires_cast = field_name in fields_requiring_validation
+            requires_resolution = (
+                not requires_cast
+                and isinstance(field_value, str)
+                and field_value.startswith("@")  # @todo: make this more robust
+            )
+
+            if not (requires_cast or requires_resolution):
                 continue
 
-            field_value = v[field_name]
-
-            if isinstance(field_value, str) and field_value.startswith("@"):
+            if requires_resolution:
                 v[field_name] = cls._process_reference(field_value[1:])
+            elif requires_cast:
+                # Handle lists of cast types first
+                if isinstance(field_value, list):
+                    list_type = get_args(hints[field_name])[0]
+                    if CastRegistry.get_casts(list_type):
+                        v[field_name] = CastModel._validate_list_field(
+                            field_name, field_value, list_type
+                        )
+                    continue
 
-            # Handle lists of cast types first
-            if isinstance(field_value, list):
-                list_type = get_args(hints[field_name])[0]
-                if CastRegistry.get_casts(list_type):
-                    v[field_name] = CastModel._validate_list_field(
-                        field_name, field_value, list_type
-                    )
-                continue
+                # For non-list fields, skip if value is already of the target type
+                raw_type = CastModel._get_raw_type(field_type)
+                if isinstance(field_value, raw_type):
+                    continue
 
-            # For non-list fields, skip if value is already of the target type
-            raw_type = CastModel._get_raw_type(field_type)
-            if isinstance(field_value, raw_type):
-                continue
-
-            if isinstance(field_value, dict):
-                try:
-                    v[field_name] = CastModel.try_build(field_type, field_value)
-                except ValueError as e:
-                    raise ValueError(f"Error building {field_name}: {str(e)}")
+                if isinstance(field_value, dict):
+                    try:
+                        v[field_name] = CastModel.try_build(field_type, field_value)
+                    except ValueError as e:
+                        raise ValueError(f"Error building {field_name}: {str(e)}")
 
         return v
 
