@@ -1,9 +1,45 @@
 import importlib
+from contextlib import contextmanager
+from threading import local
 from typing import TypeVar, Generic, Any, get_type_hints, get_args
 from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
 
 T = TypeVar("T")
+
+
+class ValidationContext:
+    """Thread-local storage for validation context."""
+
+    _context = local()
+
+    @classmethod
+    @contextmanager
+    def root_data(cls, data: dict):
+        """Store the root data during validation."""
+        cls._context.data = data
+        try:
+            yield
+        finally:
+            del cls._context.data
+
+    @classmethod
+    def get_root_data(cls) -> dict:
+        """Get the current root data."""
+        return getattr(cls._context, 'data', {})
+
+    @classmethod
+    def get_nested_value(cls, path: str) -> Any:
+        """Get a value from the root data using dot notation path."""
+        data = cls.get_root_data()
+        keys = path.split('.')
+        for key in keys:
+            if not isinstance(data, dict):
+                raise ValueError(f"Cannot traverse path {path}: {key} is not a dict")
+            if key not in data:
+                raise ValueError(f"Key {key} not found in path {path}")
+            data = data[key]
+        return data
 
 
 class CastRegistry:
@@ -89,6 +125,8 @@ class CastModel(BaseModel):
         ref_type, ref_value = reference.split(":")
         if ref_type == "import":
             return cls._process_import_reference(ref_value)
+        elif ref_type == "value":
+            return ValidationContext.get_nested_value(ref_value)
         else:
             raise ValueError(f"Unknown reference type: {ref_type}")
 
