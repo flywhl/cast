@@ -1,7 +1,7 @@
 import importlib
 from contextlib import contextmanager
 from threading import local
-from typing import TypeVar, Generic, Any, get_type_hints, get_args
+from typing import Optional, TypeVar, Generic, Any, get_type_hints, get_args
 from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
 
@@ -17,23 +17,29 @@ class ValidationContext:
     @contextmanager
     def root_data(cls, data: dict):
         """Store the root data during validation."""
-        cls._context.data = data
+        if not hasattr(cls._context, "data"):
+            cls._context.data = data
         try:
             yield
         finally:
-            if hasattr(cls._context, 'data'):
+            if hasattr(cls._context, "data"):
                 del cls._context.data
 
     @classmethod
-    def get_root_data(cls) -> dict:
+    def get_root_data(cls) -> Optional[dict]:
         """Get the current root data."""
-        return getattr(cls._context, 'data', {})
+        return getattr(cls._context, "data", None)
 
     @classmethod
     def get_nested_value(cls, path: str) -> Any:
         """Get a value from the root data using dot notation path."""
+        print(f"Getting {path}")
         data = cls.get_root_data()
-        keys = path.split('.')
+        if not data:
+            raise ValueError(
+                f"Cannot get value at {path}, because there is no validation context data."
+            )
+        keys = path.split(".")
         for key in keys:
             if not isinstance(data, dict):
                 raise ValueError(f"Cannot traverse path {path}: {key} is not a dict")
@@ -123,7 +129,8 @@ class CastModel(BaseModel):
 
     @classmethod
     def _process_reference(cls, reference: str) -> Any:
-        ref_type, ref_value = reference.split(":")
+        assert reference.startswith("@")
+        ref_type, ref_value = reference[1:].split(":")  # slice out the @-prefix
         if ref_type == "import":
             return cls._process_import_reference(ref_value)
         elif ref_type == "value":
@@ -139,24 +146,26 @@ class CastModel(BaseModel):
         if not isinstance(v, dict):
             return v
 
-        # Process only fields that are part of the model
+        # Reference Loop
+        for field_name, field_value in v.items():
+            if field_name not in hints:
+                continue
+            requires_resolution = (
+                isinstance(field_value, str)
+                and field_value.startswith("@")  # @todo: make this more robust
+            )
+
+            if requires_resolution:
+                v[field_name] = cls._process_reference(field_value)
+
+        # Cast Loop
         for field_name, field_value in v.items():
             if field_name not in hints:
                 continue
             field_type = hints[field_name]
             requires_cast = field_name in fields_requiring_validation
-            requires_resolution = (
-                not requires_cast
-                and isinstance(field_value, str)
-                and field_value.startswith("@")  # @todo: make this more robust
-            )
 
-            if not (requires_cast or requires_resolution):
-                continue
-
-            if requires_resolution:
-                v[field_name] = cls._process_reference(field_value[1:])
-            elif requires_cast:
+            if requires_cast:
                 # Handle lists of cast types first
                 if isinstance(field_value, list):
                     list_type = get_args(hints[field_name])[0]
@@ -232,9 +241,11 @@ class CastModel(BaseModel):
     def model_validate(cls, obj: Any, *args, **kwargs):
         """Validate and build cast fields in a model."""
         if not isinstance(obj, dict):
+            print("Skipping ValidationContext.")
             return super().model_validate(obj, *args, **kwargs)
-            
+
         with ValidationContext.root_data(obj):
+            print("Using ValidationContext.")
             return super().model_validate(obj, *args, **kwargs)
 
 
