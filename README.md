@@ -10,6 +10,12 @@
 
 * `rye add cast --git https://github.com/flywhl/cast`
 
+## Features
+
+* Build complex objects using intermediate Pydantic models.
+* Reference other values using `@value:x.y.z`
+* Import objects using `@import:x.y.z`
+
 ## Usage
 
 ```python
@@ -51,14 +57,16 @@ class MyModel(CastModel):
 
 # 3. Validate from YAML files that specify the parameterisation
 
-some_yaml = """normal_tensor:
+some_yaml = """common:
+    size: [3, 5]
+normal_tensor:
     mean: 0.0
     std: 0.1
-    size: [3, 5]
+    size: @value:common.size
 uniform_tensor:
     low: -1.0
     std: 1.0
-    size: [3, 5]
+    size: @value:common.size
 """
 
 # 4. Receive objects built from the parameterisations.
@@ -73,7 +81,7 @@ assert isinstance(my_model.uniform_tensor, Tensor)
 
 * `git clone https://github.com/flywhl/cast.git`
 * `cd cast`
-* `rye sync`
+* `uv sync`
 
 ## Flywheel
 
