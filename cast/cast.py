@@ -1,9 +1,60 @@
 import importlib
-from typing import TypeVar, Generic, Any, get_type_hints, get_args
+from contextlib import contextmanager
+from threading import local
+from typing import Optional, TypeVar, Generic, Any, get_type_hints, get_args
 from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
 
 T = TypeVar("T")
+
+
+class ValidationContext:
+    """Thread-local storage for validation context."""
+
+    _context = local()
+
+    @classmethod
+    @contextmanager
+    def root_data(cls, data: dict):
+        """Store the root data during validation."""
+        # Initialize depth counter if needed
+        if not hasattr(cls._context, "depth"):
+            cls._context.depth = 0
+
+        # Set data only at top level
+        if cls._context.depth == 0 and not hasattr(cls._context, "data"):
+            cls._context.data = data
+
+        cls._context.depth += 1
+        try:
+            yield
+        finally:
+            cls._context.depth -= 1
+            # Only clean up data when unwinding the top level
+            if cls._context.depth == 0 and hasattr(cls._context, "data"):
+                del cls._context.data
+
+    @classmethod
+    def get_root_data(cls) -> Optional[dict]:
+        """Get the current root data."""
+        return getattr(cls._context, "data", None)
+
+    @classmethod
+    def get_nested_value(cls, path: str) -> Any:
+        """Get a value from the root data using dot notation path."""
+        data = cls.get_root_data()
+        if not data:
+            raise ValueError(
+                f"Cannot get value at {path}, because there is no validation context data."
+            )
+        keys = path.split(".")
+        for key in keys:
+            if not isinstance(data, dict):
+                raise ValueError(f"Cannot traverse path {path}: {key} is not a dict")
+            if key not in data:
+                raise ValueError(f"Key {key} not found in path {path}")
+            data = data[key]
+        return data
 
 
 class CastRegistry:
@@ -40,10 +91,10 @@ class CastModel(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @staticmethod
-    def _get_fields_requiring_validation(hints: dict[str, Any]) -> dict[str, Any]:
+    def _get_fields_requiring_validation(hints: dict[str, Any]) -> set[str]:
         """Get fields that need cast validation."""
         return {
-            name: type_
+            name
             for name, type_ in hints.items()
             if (
                 CastRegistry.get_casts(type_)
@@ -86,48 +137,62 @@ class CastModel(BaseModel):
 
     @classmethod
     def _process_reference(cls, reference: str) -> Any:
-        ref_type, ref_value = reference.split(":")
+        assert reference.startswith("@")
+        ref_type, ref_value = reference[1:].split(":")  # slice out the @-prefix
         if ref_type == "import":
             return cls._process_import_reference(ref_value)
+        elif ref_type == "value":
+            return ValidationContext.get_nested_value(ref_value)
         else:
             raise ValueError(f"Unknown reference type: {ref_type}")
 
     @classmethod
     def validate_cast_fields(
-        cls, v: Any, fields_requiring_validation: dict[str, Any], hints: dict[str, Any]
+        cls, v: Any, fields_requiring_validation: set[str], hints: dict[str, Any]
     ) -> Any:
         """Validate and build cast fields in a model."""
         if not isinstance(v, dict):
             return v
 
-        for field_name, field_type in fields_requiring_validation.items():
-            if field_name not in v:
+        # Reference Loop
+        for field_name, field_value in v.items():
+            if field_name not in hints:
                 continue
+            requires_resolution = (
+                isinstance(field_value, str)
+                and field_value.startswith("@")  # @todo: make this more robust
+            )
 
-            field_value = v[field_name]
+            if requires_resolution:
+                v[field_name] = cls._process_reference(field_value)
 
-            if isinstance(field_value, str) and field_value.startswith("@"):
-                v[field_name] = cls._process_reference(field_value[1:])
-
-            # Handle lists of cast types first
-            if isinstance(field_value, list):
-                list_type = get_args(hints[field_name])[0]
-                if CastRegistry.get_casts(list_type):
-                    v[field_name] = CastModel._validate_list_field(
-                        field_name, field_value, list_type
-                    )
+        # Cast Loop
+        for field_name, field_value in v.items():
+            if field_name not in hints:
                 continue
+            field_type = hints[field_name]
+            requires_cast = field_name in fields_requiring_validation
 
-            # For non-list fields, skip if value is already of the target type
-            raw_type = CastModel._get_raw_type(field_type)
-            if isinstance(field_value, raw_type):
-                continue
+            if requires_cast:
+                # Handle lists of cast types first
+                if isinstance(field_value, list):
+                    list_type = get_args(hints[field_name])[0]
+                    if CastRegistry.get_casts(list_type):
+                        v[field_name] = CastModel._validate_list_field(
+                            field_name, field_value, list_type
+                        )
+                    continue
 
-            if isinstance(field_value, dict):
-                try:
-                    v[field_name] = CastModel.try_build(field_type, field_value)
-                except ValueError as e:
-                    raise ValueError(f"Error building {field_name}: {str(e)}")
+                # For non-list fields, skip if value is already of the target type
+                raw_type = CastModel._get_raw_type(field_type)
+                if isinstance(field_value, raw_type):
+                    continue
+
+                if isinstance(field_value, dict):
+                    try:
+                        v[field_name] = CastModel.try_build(field_type, field_value)
+                    except ValueError as e:
+                        raise ValueError(f"Error building {field_name}: {str(e)}")
 
         return v
 
@@ -179,6 +244,15 @@ class CastModel(BaseModel):
                 schema,
             ]
         )
+
+    @classmethod
+    def model_validate(cls, obj: Any, *args, **kwargs):
+        """Validate and build cast fields in a model."""
+        if not isinstance(obj, dict):
+            return super().model_validate(obj, *args, **kwargs)
+
+        with ValidationContext.root_data(obj):
+            return super().model_validate(obj, *args, **kwargs)
 
 
 class Cast(CastModel, Generic[T]):

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 import cast
 from cast import Cast, CastModel
+from cast.cast import ValidationContext
 
 
 class Tensor(BaseModel):
@@ -282,6 +283,58 @@ class ConfigWithTensor(BaseModel):
     name: str
     description: str | None = None
     data: TensorWrapper
+
+
+def test_value_reference():
+    """Test the @value reference functionality."""
+    # Test basic value reference
+    data = {
+        "stuff": {"tensor": {"mean": 0.0, "std_dev": 1.0, "size": 50}},
+        "values": "@value:stuff.tensor",
+    }
+
+    model = DataContainer.model_validate(data)
+    assert isinstance(model.values, Tensor)
+    assert len(model.values) == 50
+
+    # Test nested value reference
+    nested_data = {
+        "config": {
+            "tensors": {
+                "primary": {"mean": 0.0, "std_dev": 1.0, "size": 30},
+                "secondary": {"low": -1.0, "high": 1.0, "size": 20},
+            }
+        },
+        "name": "foo",
+        "primary": "@value:config.tensors.primary",
+        "secondary": {
+            "config": {"name": "nested", "scale": 2.0},
+            "tensor": "@value:config.tensors.secondary",
+        },
+    }
+
+    model = ComplexDataContainer.model_validate(nested_data)
+    assert len(model.primary) == 30
+    assert len(model.secondary.tensor) == 20
+
+    # Test invalid path
+    invalid_data = {"values": "@value:nonexistent.path"}
+    try:
+        DataContainer.model_validate(invalid_data)
+        assert False, "Should have raised ValueError for invalid path"
+    except ValueError:
+        pass
+
+    # Test invalid traversal
+    invalid_traverse = {
+        "nested": {"value": 123},
+        "values": "@value:nested.value.deeper",
+    }
+    try:
+        DataContainer.model_validate(invalid_traverse)
+        assert False, "Should have raised ValueError for invalid traversal"
+    except ValueError:
+        pass
 
 
 def test_import_reference(mocker):
