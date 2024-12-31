@@ -8,7 +8,7 @@
 
 ## Installation
 
-* `rye add cast --git https://github.com/flywhl/cast`
+* `uv add git+https://github.com/flywhl/cast`
 
 ## Features
 
