@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, TypeVar, Generic, Any, get_type_hints, get_args
+from typing import TypeVar, Generic, Any, get_type_hints, get_args
 from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
 
@@ -103,10 +103,6 @@ class CastModel(BaseModel):
             requires_resolution = (
                 isinstance(field_value, str)
                 and field_value.startswith("@")  # @todo: make this more robust
-            )
-
-            print(
-                f"field_name: {field_name}, field_value: {field_value}, requires_resolution: {requires_resolution}"
             )
 
             if requires_resolution:

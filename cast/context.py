@@ -1,4 +1,3 @@
-
 import logging
 from contextlib import contextmanager
 from threading import local

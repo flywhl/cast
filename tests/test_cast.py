@@ -3,31 +3,21 @@ import random
 import statistics
 from typing import Sequence, Union, overload
 
-import pytest
 from pydantic import BaseModel, Field
 
 import cast
 from cast import Cast, CastModel, ValidationContext
-from cast.cast import RefTagRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_reftag_registry():
-    """Clear the RefTagRegistry before each test."""
-    RefTagRegistry.clear()
-    # Re-register built-in handlers
-    cast.reftag("import")(cast.import_tag)
-    cast.reftag("value")(cast.value_tag)
-    yield
 
 
 class SimpleModel(CastModel):
     """A simple model for testing reftags."""
+
     name: str
 
 
 class CounterModel(CastModel):
     """A model for testing stateful reftags."""
+
     first: int
     second: int
     third: int
@@ -402,6 +392,7 @@ def test_import_reference(mocker):
 
 def test_custom_reftags():
     """Test custom reftag functionality."""
+
     # Register a custom environment variable reftag
     @cast.reftag("env")
     def env_tag(value: str, _context: ValidationContext) -> str:
@@ -410,6 +401,7 @@ def test_custom_reftags():
 
     # Register a custom counter reftag that uses context
     counter = 0
+
     @cast.reftag("counter")
     def counter_tag(_value: str, _context: ValidationContext) -> int:
         """Handle @counter: references by returning incrementing numbers."""
@@ -424,11 +416,7 @@ def test_custom_reftags():
     assert model.name == "test_value"
 
     # Test counter reftag
-    data = {
-        "first": "@counter:",
-        "second": "@counter:",
-        "third": "@counter:"
-    }
+    data = {"first": "@counter:", "second": "@counter:", "third": "@counter:"}
     model = CounterModel.model_validate(data)
     assert model.first == 1
     assert model.second == 2
