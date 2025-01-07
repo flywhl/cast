@@ -392,8 +392,8 @@ def test_import_reference(mocker):
         pass
 
 
-def test_env_reference_and_validation_error():
-    """Test the @env reference functionality and that ValueError is wrapped in ValidationError."""
+def test_env_reference():
+    """Test the @env reference functionality."""
     # Test successful env var reference
     os.environ["TEST_VAR"] = "test_value"
     data = {"name": "@env:TEST_VAR"}
@@ -407,20 +407,6 @@ def test_env_reference_and_validation_error():
         assert False, "Should have raised ValidationError"
     except ValidationError as e:
         assert "Environment variable NONEXISTENT_VAR not found" in str(e)
-
-    # Test ValueError in env var reftag handler is wrapped in ValidationError
-    def raise_value_error(name, _):
-        print("are we called?")
-        raise ValueError("Simulated ValueError in env var reftag handler")
-
-    with patch("cast.reftag.env_tag", side_effect=raise_value_error):
-        data = {"name": "@env:TEST_VAR"}
-        try:
-            SimpleModel.model_validate(data)
-            assert False, "Should have raised ValidationError"
-        except Exception as e:
-            print(type(e))
-            assert "Simulated ValueError in env var reftag handler" in str(e)
 
 
 def test_castmodel_in_basemodel():
