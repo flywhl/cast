@@ -81,6 +81,11 @@ class RefTagRegistry:
             raise ValueError(f"No handler registered for tag: {tag}")
         return cls._handlers[tag]
 
+    @classmethod
+    def clear(cls):
+        """Clear all registered handlers."""
+        cls._handlers.clear()
+
 
 class CastRegistry:
     """Global registry mapping types to their cast classes."""

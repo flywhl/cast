@@ -3,10 +3,22 @@ import random
 import statistics
 from typing import Sequence, Union, overload
 
+import pytest
 from pydantic import BaseModel, Field
 
 import cast
 from cast import Cast, CastModel, ValidationContext
+from cast.cast import RefTagRegistry
+
+
+@pytest.fixture(autouse=True)
+def clear_reftag_registry():
+    """Clear the RefTagRegistry before each test."""
+    RefTagRegistry.clear()
+    # Re-register built-in handlers
+    cast.reftag("import")(cast.import_tag)
+    cast.reftag("value")(cast.value_tag)
+    yield
 
 
 class SimpleModel(CastModel):
