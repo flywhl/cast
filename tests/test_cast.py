@@ -1,12 +1,14 @@
+from unittest.mock import patch
 import os
 import random
 import statistics
 from typing import Sequence, Union, overload
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 import cast
-from cast import Cast, CastModel, ValidationContext
+from cast import Cast, CastModel
+from cast.reftag import RefTagRegistry
 
 
 class SimpleModel(CastModel):
