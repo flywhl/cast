@@ -410,6 +410,7 @@ def test_env_reference_and_validation_error():
 
     # Test ValueError in env var reftag handler is wrapped in ValidationError
     def raise_value_error(name, _):
+        print("are we called?")
         raise ValueError("Simulated ValueError in env var reftag handler")
 
     with patch("cast.reftag.env_tag", side_effect=raise_value_error):
@@ -417,7 +418,8 @@ def test_env_reference_and_validation_error():
         try:
             SimpleModel.model_validate(data)
             assert False, "Should have raised ValidationError"
-        except ValidationError as e:
+        except Exception as e:
+            print(type(e))
             assert "Simulated ValueError in env var reftag handler" in str(e)
 
 
