@@ -1,5 +1,6 @@
 import importlib
 import logging
+import os
 from typing import Any, Callable
 
 from .context import ValidationContext
@@ -59,3 +60,12 @@ def import_tag(path: str, _: ValidationContext) -> Any:
 def value_tag(path: str, context: ValidationContext) -> Any:
     """Handle @value:path.to.value references."""
     return context.get_nested_value(path)
+
+
+@reftag("env")
+def env_tag(name: str, _: ValidationContext) -> str:
+    """Handle @env:VARIABLE_NAME references."""
+    try:
+        return os.environ[name]
+    except KeyError as e:
+        raise ValueError(f"Environment variable {name} not found") from e
