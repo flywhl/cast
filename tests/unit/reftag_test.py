@@ -1,14 +1,99 @@
 from unittest.mock import patch
 import os
-from pydantic import ValidationError
+import random
+import statistics
+from typing import Sequence, Union, overload
+from pydantic import BaseModel, Field, ValidationError
 
-from cast import CastModel
+from cast import CastModel, Cast
 from cast.context import ValidationContext
 
 
 class SimpleModel(CastModel):
     """A simple model for testing reftags."""
     name: str
+
+
+class Tensor(BaseModel):
+    """A simple mock tensor class that wraps a list of numbers."""
+
+    data: list[float]
+
+    @classmethod
+    def from_list(cls, values: Sequence[float]) -> "Tensor":
+        return cls(data=list(values))
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def mean(self) -> float:
+        return statistics.mean(self.data)
+
+    def std(self) -> float:
+        return statistics.stdev(self.data)
+
+    @overload
+    def __getitem__(self, idx: int) -> float: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> "Tensor": ...
+
+    def __getitem__(self, idx: Union[int, slice]) -> Union[float, "Tensor"]:
+        if isinstance(idx, slice):
+            return Tensor(data=self.data[idx])
+        return self.data[idx]
+
+
+@Cast.for_type(Tensor)
+class NormalTensor(Cast[Tensor]):
+    """Cast for creating tensors from a normal distribution."""
+
+    mean: float
+    std_dev: float
+    size: int = Field(gt=0, description="Size must be a positive integer")
+
+    def build(self) -> Tensor:
+        return Tensor(
+            data=[random.gauss(self.mean, self.std_dev) for _ in range(self.size)]
+        )
+
+
+@Cast.for_type(Tensor)
+class UniformTensor(Cast[Tensor]):
+    """Cast for creating tensors with values from a uniform distribution."""
+
+    low: float
+    high: float
+    size: int = Field(gt=0, description="Size must be a positive integer")
+
+    def build(self) -> Tensor:
+        return Tensor(
+            data=[random.uniform(self.low, self.high) for _ in range(self.size)]
+        )
+
+
+class DataContainer(CastModel):
+    """Example model using cast-enabled tensor."""
+    values: Tensor
+
+
+class NestedConfig(BaseModel):
+    """A regular Pydantic model for configuration."""
+    name: str
+    scale: float
+
+
+class NestedTensorContainer(CastModel):
+    """A CastModel that will be nested inside another CastModel."""
+    config: NestedConfig
+    tensor: Tensor
+
+
+class ComplexDataContainer(CastModel):
+    """A CastModel containing both regular fields and nested CastModels."""
+    name: str
+    primary: Tensor
+    secondary: NestedTensorContainer
 
 
 def test_value_reference():
