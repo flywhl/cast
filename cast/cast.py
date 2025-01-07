@@ -180,8 +180,10 @@ class CastModel(BaseModel):
                 isinstance(field_value, str)
                 and field_value.startswith("@")  # @todo: make this more robust
             )
-            print(field_name)
-            print(field_value)
+
+            print(
+                f"field_name: {field_name}, field_value: {field_value}, requires_resolution: {requires_resolution}"
+            )
 
             if requires_resolution:
                 v[field_name] = cls._process_reference(field_value)
@@ -250,9 +252,6 @@ class CastModel(BaseModel):
 
         hints = get_type_hints(cls)
         fields_requiring_validation = cls._get_fields_requiring_validation(hints)
-
-        if not fields_requiring_validation:
-            return schema
 
         return core_schema.chain_schema(
             [
