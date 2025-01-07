@@ -409,10 +409,10 @@ def test_env_reference_and_validation_error():
         assert "Environment variable NONEXISTENT_VAR not found" in str(e)
 
     # Test ValueError in env var reftag handler is wrapped in ValidationError
-    def raise_value_error(value):
+    def raise_value_error(name, _):
         raise ValueError("Simulated ValueError in env var reftag handler")
 
-    with patch.object(RefTagRegistry, "get_env_var", side_effect=raise_value_error):
+    with patch("cast.reftag.env_tag", side_effect=raise_value_error):
         data = {"name": "@env:TEST_VAR"}
         try:
             SimpleModel.model_validate(data)
