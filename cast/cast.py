@@ -1,11 +1,12 @@
-import importlib
 from contextlib import contextmanager
 from threading import local
-from typing import Optional, TypeVar, Generic, Any, get_type_hints, get_args
+from typing import Callable, Optional, TypeVar, Generic, Any, get_type_hints, get_args
 from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
 
 T = TypeVar("T")
+
+REFTAG_PREFIX = "@"
 
 
 class ValidationContext:
@@ -55,6 +56,26 @@ class ValidationContext:
                 raise ValueError(f"Key {key} not found in path {path}")
             data = data[key]
         return data
+
+
+class RefTagRegistry:
+    """Global registry mapping reference tags to their handler functions."""
+
+    _handlers: dict[str, Callable] = {}
+
+    @classmethod
+    def register(cls, tag: str, handler: Callable):
+        """Register a handler function for a reference tag."""
+        if tag in cls._handlers:
+            raise ValueError(f"Handler already registered for tag: {tag}")
+        cls._handlers[tag] = handler
+
+    @classmethod
+    def get_handler(cls, tag: str) -> Callable:
+        """Get the handler for a reference tag."""
+        if tag not in cls._handlers:
+            raise ValueError(f"No handler registered for tag: {tag}")
+        return cls._handlers[tag]
 
 
 class CastRegistry:
@@ -127,24 +148,11 @@ class CastModel(BaseModel):
         )
 
     @classmethod
-    def _process_import_reference(cls, path: str) -> Any:
-        module_path, attr = path.rsplit(".", 1)
-        try:
-            module = importlib.import_module(module_path)
-        except ImportError as e:
-            raise ValueError(path) from e
-        return getattr(module, attr)
-
-    @classmethod
     def _process_reference(cls, reference: str) -> Any:
-        assert reference.startswith("@")
-        ref_type, ref_value = reference[1:].split(":")  # slice out the @-prefix
-        if ref_type == "import":
-            return cls._process_import_reference(ref_value)
-        elif ref_type == "value":
-            return ValidationContext.get_nested_value(ref_value)
-        else:
-            raise ValueError(f"Unknown reference type: {ref_type}")
+        assert reference.startswith(REFTAG_PREFIX)
+        tag, value = reference[1:].split(":")  # slice out the @-prefix
+        handler = RefTagRegistry.get_handler(tag)
+        return handler(value, ValidationContext)
 
     @classmethod
     def validate_cast_fields(

@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 
 import cast
 from cast import Cast, CastModel
-from cast.cast import ValidationContext
 
 
 class Tensor(BaseModel):
