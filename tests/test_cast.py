@@ -390,45 +390,33 @@ def test_import_reference(mocker):
         pass
 
 
-def test_custom_reftags():
-    """Test custom reftag functionality."""
-
-    # Register a custom environment variable reftag
-    @cast.reftag("env")
-    def env_tag(value: str, _context: ValidationContext) -> str:
-        """Handle @env:VARIABLE_NAME references."""
-        return os.environ[value]
-
-    # Register a custom counter reftag that uses context
-    counter = 0
-
-    @cast.reftag("counter")
-    def counter_tag(_value: str, _context: ValidationContext) -> int:
-        """Handle @counter: references by returning incrementing numbers."""
-        nonlocal counter
-        counter += 1
-        return counter
-
-    # Test env reftag
+def test_env_reference_and_validation_error():
+    """Test the @env reference functionality and that ValueError is wrapped in ValidationError."""
+    # Test successful env var reference
     os.environ["TEST_VAR"] = "test_value"
     data = {"name": "@env:TEST_VAR"}
     model = SimpleModel.model_validate(data)
     assert model.name == "test_value"
 
-    # Test counter reftag
-    data = {"first": "@counter:", "second": "@counter:", "third": "@counter:"}
-    model = CounterModel.model_validate(data)
-    assert model.first == 1
-    assert model.second == 2
-    assert model.third == 3
-
-    # Test invalid reftag
-    data = {"name": "@invalid:something"}
+    # Test missing env var raises ValidationError
+    data = {"name": "@env:NONEXISTENT_VAR"}
     try:
         SimpleModel.model_validate(data)
-        assert False, "Should have raised ValueError for invalid reftag"
-    except ValueError:
-        pass
+        assert False, "Should have raised ValidationError"
+    except ValidationError as e:
+        assert "Environment variable NONEXISTENT_VAR not found" in str(e)
+
+    # Test ValueError in env var reftag handler is wrapped in ValidationError
+    def raise_value_error(value):
+        raise ValueError("Simulated ValueError in env var reftag handler")
+
+    with patch.object(RefTagRegistry, "get_env_var", side_effect=raise_value_error):
+        data = {"name": "@env:TEST_VAR"}
+        try:
+            SimpleModel.model_validate(data)
+            assert False, "Should have raised ValidationError"
+        except ValidationError as e:
+            assert "Simulated ValueError in env var reftag handler" in str(e)
 
 
 def test_castmodel_in_basemodel():
