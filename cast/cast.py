@@ -180,6 +180,8 @@ class CastModel(BaseModel):
                 isinstance(field_value, str)
                 and field_value.startswith("@")  # @todo: make this more robust
             )
+            print(field_name)
+            print(field_value)
 
             if requires_resolution:
                 v[field_name] = cls._process_reference(field_value)
