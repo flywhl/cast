@@ -1,14 +1,11 @@
-from unittest.mock import patch
-import os
 import random
 import statistics
 from typing import Sequence, Union, overload
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 import cast
 from cast import Cast, CastModel
-from cast.reftag import RefTagRegistry
 
 
 class SimpleModel(CastModel):
@@ -299,8 +296,6 @@ class ConfigWithTensor(BaseModel):
     name: str
     description: str | None = None
     data: TensorWrapper
-
-
 
 
 def test_castmodel_in_basemodel():

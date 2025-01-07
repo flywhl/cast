@@ -1,4 +1,3 @@
-from unittest.mock import patch
 import os
 import random
 import statistics
@@ -6,11 +5,12 @@ from typing import Sequence, Union, overload
 from pydantic import BaseModel, Field, ValidationError
 
 from cast import CastModel, Cast
-from cast.context import ValidationContext
+import cast
 
 
 class SimpleModel(CastModel):
     """A simple model for testing reftags."""
+
     name: str
 
 
@@ -44,7 +44,7 @@ class Tensor(BaseModel):
         return self.data[idx]
 
 
-@Cast.for_type(Tensor)
+@cast.for_type(Tensor)
 class NormalTensor(Cast[Tensor]):
     """Cast for creating tensors from a normal distribution."""
 
@@ -58,7 +58,7 @@ class NormalTensor(Cast[Tensor]):
         )
 
 
-@Cast.for_type(Tensor)
+@cast.for_type(Tensor)
 class UniformTensor(Cast[Tensor]):
     """Cast for creating tensors with values from a uniform distribution."""
 
@@ -74,23 +74,27 @@ class UniformTensor(Cast[Tensor]):
 
 class DataContainer(CastModel):
     """Example model using cast-enabled tensor."""
+
     values: Tensor
 
 
 class NestedConfig(BaseModel):
     """A regular Pydantic model for configuration."""
+
     name: str
     scale: float
 
 
 class NestedTensorContainer(CastModel):
     """A CastModel that will be nested inside another CastModel."""
+
     config: NestedConfig
     tensor: Tensor
 
 
 class ComplexDataContainer(CastModel):
     """A CastModel containing both regular fields and nested CastModels."""
+
     name: str
     primary: Tensor
     secondary: NestedTensorContainer
