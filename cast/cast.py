@@ -1,8 +1,11 @@
+import logging
 from contextlib import contextmanager
 from threading import local
 from typing import Callable, Optional, TypeVar, Generic, Any, get_type_hints, get_args
 from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -69,6 +72,7 @@ class RefTagRegistry:
         if tag in cls._handlers:
             raise ValueError(f"Handler already registered for tag: {tag}")
         cls._handlers[tag] = handler
+        logger.debug(f"Registered handler for tag: {tag}")
 
     @classmethod
     def get_handler(cls, tag: str) -> Callable:
@@ -149,6 +153,7 @@ class CastModel(BaseModel):
 
     @classmethod
     def _process_reference(cls, reference: str) -> Any:
+        logger.debug(f"Processing reference: {reference}")
         assert reference.startswith(REFTAG_PREFIX)
         tag, value = reference[1:].split(":")  # slice out the @-prefix
         handler = RefTagRegistry.get_handler(tag)
