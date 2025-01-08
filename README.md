@@ -8,7 +8,7 @@
 
 ## Installation
 
-* `uv add git+https://github.com/flywhl/cyantic`
+* `uv add cyantic`
 
 ## Features
 
@@ -82,6 +82,7 @@ assert isinstance(my_model.uniform_tensor, Tensor)
 * `git clone https://github.com/flywhl/cyantic.git`
 * `cd cyantic`
 * `uv sync`
+* `just test`
 
 ## Flywheel
 
