@@ -8,7 +8,7 @@ from cyantic import Blueprint, blueprint, CyanticModel
 
 
 class SimpleModel(CyanticModel):
-    """A simple model for testing reftags."""
+    """A simple model for testing hooks."""
 
     name: str
 

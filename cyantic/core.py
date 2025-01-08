@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, ValidationErro
 from pydantic_core import core_schema
 
 from .context import ValidationContext
-from .reftag import REFTAG_PREFIX, RefTagRegistry
+from .hooks import HOOK_PREFIX, HookRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -85,9 +85,9 @@ class CyanticModel(BaseModel):
     @classmethod
     def _process_reference(cls, reference: str) -> Any:
         logger.debug(f"Processing reference: {reference}")
-        assert reference.startswith(REFTAG_PREFIX)
-        tag, value = reference[1:].split(":")  # slice out the @-prefix
-        handler = RefTagRegistry.get_handler(tag)
+        assert reference.startswith(HOOK_PREFIX)
+        hook, value = reference[1:].split(":")  # slice out the @-prefix
+        handler = HookRegistry.get_handler(hook)
         return handler(value, ValidationContext)
 
     @classmethod

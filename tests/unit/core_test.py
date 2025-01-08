@@ -8,13 +8,13 @@ from cyantic import Blueprint, blueprint, CyanticModel
 
 
 class SimpleModel(CyanticModel):
-    """A simple model for testing reftags."""
+    """A simple model for testing hooks."""
 
     name: str
 
 
 class CounterModel(CyanticModel):
-    """A model for testing stateful reftags."""
+    """A model for testing stateful hooks."""
 
     first: int
     second: int

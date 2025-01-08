@@ -11,7 +11,7 @@ Cyantic lets you build complex types from simple blueprints, using Pydantic.
 * Build complex objects using intermediate Pydantic models.
 * Reference other values using `@value:x.y.z`
 * Import objects using `@import:x.y.z`
-* Define custom `@reftag` handlers (see tests)
+* Define custom `@hook` handlers (see tests)
 
 ## Installation
 
@@ -20,7 +20,7 @@ Cyantic lets you build complex types from simple blueprints, using Pydantic.
 ## Usage
 
 ```python
-from cyantic import Blueprint, blueprint, CyanticModel
+from cyantic import Blueprint, blueprint, CyanticModel, hook
 from torch import Tensor
 import torch
 import yaml
@@ -55,10 +55,22 @@ class MyModel(CyanticModel):
     uniform_tensor: Tensor
 
 
+# 3. (optional) define custom hooks
+
+@hook("env")
+def env_hook(name: str, _: ValidationContext) -> str:
+    """Handle @env:VARIABLE_NAME references."""
+    try:
+        return os.environ[name]
+    except KeyError as e:
+        raise ValueError(f"Environment variable {name} not found") from e
+
+
 # 3. Validate from YAML files that specify the parameterisation
 
 some_yaml = """common:
     size: [3, 5]
+    foo: @env:MY_VARIABLE
 normal_tensor:
     mean: 0.0
     std: 0.1
