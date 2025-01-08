@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/4b8d3bcd-f8a5-48e6-8148-d65f0f1e6060">
+  <img src="https://github.com/user-attachments/assets/4ce903ef-ae04-4c9f-9a17-ad6932472de7">
 </p>
 
 > The [cyanotype](https://en.wikipedia.org/wiki/Cyanotype) process, which gave birth to the blueprint, uses iron salts and UV light to transform ordinary paper into deep Prussian blue prints.
