@@ -66,7 +66,7 @@ def env_hook(name: str, _: ValidationContext) -> str:
         raise ValueError(f"Environment variable {name} not found") from e
 
 
-# 3. Validate from YAML files that specify the parameterisation
+# 4. Validate from YAML files that specify the parameterisation
 
 some_yaml = """common:
     size: [3, 5]
