@@ -1,21 +1,21 @@
 <p align="center">
   <img src="https://github.com/user-attachments/assets/6004aee7-0a64-4cc4-a7aa-b6790fedccc7">
 </p>
-<p align="center">
-  <b>Use Pydantic to build complex types from parameter specifications.</b>
-</p>
-<br/>
 
-## Installation
-
-* `uv add cyantic`
+> The cyanotype process, which gave birth to the blueprint, uses iron salts and UV light to transform ordinary paper into deep Prussian blue prints.
 
 ## Features
+
+Cyantic lets you build complex types from simple blueprints, using Pydantic.
 
 * Build complex objects using intermediate Pydantic models.
 * Reference other values using `@value:x.y.z`
 * Import objects using `@import:x.y.z`
 * Define custom `@reftag` handlers (see tests)
+
+## Installation
+
+* `uv add cyantic`
 
 ## Usage
 
