@@ -42,6 +42,16 @@ class Tensor(BaseModel):
             return Tensor(data=self.data[idx])
         return self.data[idx]
 
+    def __hash__(self) -> int:
+        """Make Tensor hashable for use in sets."""
+        return hash(tuple(self.data))
+
+    def __eq__(self, other: object) -> bool:
+        """Define equality for hash consistency."""
+        if not isinstance(other, Tensor):
+            return NotImplemented
+        return self.data == other.data
+
 
 @blueprint(Tensor)
 class NormalTensor(Blueprint[Tensor]):

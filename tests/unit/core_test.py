@@ -53,6 +53,16 @@ class Tensor(BaseModel):
             return Tensor(data=self.data[idx])
         return self.data[idx]
 
+    def __hash__(self) -> int:
+        """Make Tensor hashable for use in sets."""
+        return hash(tuple(self.data))
+
+    def __eq__(self, other: object) -> bool:
+        """Define equality for hash consistency."""
+        if not isinstance(other, Tensor):
+            return NotImplemented
+        return self.data == other.data
+
 
 @blueprint(Tensor)
 class NormalTensor(Blueprint[Tensor]):
@@ -111,58 +121,78 @@ def test_cast_build():
         pass
 
 
-class TensorList(CyanticModel):
-    """A model containing a list of tensors."""
+class TensorContainers(CyanticModel):
+    """A model containing tensors in various container types."""
 
-    tensors: list[Tensor]
+    list_tensors: list[Tensor]
+    dict_tensors: dict[str, Tensor]
+    set_tensors: set[Tensor]
+    tuple_tensors: tuple[Tensor, ...]
 
 
-def test_list_of_castmodels():
-    """Test handling lists of fields that use casts."""
-    # Test list of normal distributions - verify sizes and types only
-    normal_list_data = {
-        "tensors": [
+def test_container_of_blueprints():
+    """Test handling various container types with blueprinted fields."""
+    # Test data with different container types
+    container_data = {
+        "list_tensors": [
             {"mean": 0.0, "std_dev": 1.0, "size": 10},
-            {"mean": 5.0, "std_dev": 2.0, "size": 20},
-            {"mean": -5.0, "std_dev": 0.5, "size": 30},
-        ]
+            {"low": 0.0, "high": 1.0, "size": 20},
+        ],
+        "dict_tensors": {
+            "normal": {"mean": 0.0, "std_dev": 1.0, "size": 15},
+            "uniform": {"low": -1.0, "high": 1.0, "size": 25},
+        },
+        "set_tensors": [  # Sets can be initialized from lists
+            {"mean": 1.0, "std_dev": 0.5, "size": 30},
+            {"low": -2.0, "high": 2.0, "size": 40},
+        ],
+        "tuple_tensors": [  # Tuples can be initialized from lists
+            {"mean": -1.0, "std_dev": 2.0, "size": 45},
+            {"low": 0.0, "high": 5.0, "size": 55},
+        ],
     }
 
-    model = TensorList.model_validate(normal_list_data)
-    assert len(model.tensors) == 3
-    assert all(isinstance(t, Tensor) for t in model.tensors)
-    assert len(model.tensors[0]) == 10
-    assert len(model.tensors[1]) == 20
-    assert len(model.tensors[2]) == 30
-    assert all(isinstance(x, float) for t in model.tensors for x in t.data)
+    model = TensorContainers.model_validate(container_data)
 
-    # Test mixed normal and uniform distributions - verify types and sizes
-    mixed_list_data = {
-        "tensors": [
-            {"mean": 0.0, "std_dev": 1.0, "size": 50},  # Normal
-            {"low": 0.0, "high": 1.0, "size": 50},  # Uniform
-            {"mean": 2.0, "std_dev": 0.5, "size": 50},  # Normal
-        ]
-    }
+    # Test list container
+    assert isinstance(model.list_tensors, list)
+    assert len(model.list_tensors) == 2
+    assert all(isinstance(t, Tensor) for t in model.list_tensors)
+    assert len(model.list_tensors[0]) == 10
+    assert len(model.list_tensors[1]) == 20
 
-    model = TensorList.model_validate(mixed_list_data)
-    assert len(model.tensors) == 3
-    assert all(isinstance(t, Tensor) for t in model.tensors)
-    assert all(len(t) == 50 for t in model.tensors)
-    assert all(isinstance(x, float) for t in model.tensors for x in t.data)
+    # Test dict container
+    assert isinstance(model.dict_tensors, dict)
+    assert set(model.dict_tensors.keys()) == {"normal", "uniform"}
+    assert all(isinstance(t, Tensor) for t in model.dict_tensors.values())
+    assert len(model.dict_tensors["normal"]) == 15
+    assert len(model.dict_tensors["uniform"]) == 25
 
-    # Test validation with invalid items in list
-    invalid_list_data = {
-        "tensors": [
-            {"mean": 0.0, "std_dev": 1.0, "size": 10},
-            {"mean": 0.0, "size": 20},  # Missing std_dev
-            {"low": 0.0, "high": 1.0, "size": 30},
-        ]
+    # Test set container
+    assert isinstance(model.set_tensors, set)
+    assert len(model.set_tensors) == 2
+    assert all(isinstance(t, Tensor) for t in model.set_tensors)
+    assert any(len(t) == 30 for t in model.set_tensors)
+    assert any(len(t) == 40 for t in model.set_tensors)
+
+    # Test tuple container
+    assert isinstance(model.tuple_tensors, tuple)
+    assert len(model.tuple_tensors) == 2
+    assert all(isinstance(t, Tensor) for t in model.tuple_tensors)
+    assert len(model.tuple_tensors[0]) == 45
+    assert len(model.tuple_tensors[1]) == 55
+
+    # Test validation with invalid items
+    invalid_data = {
+        "list_tensors": [{"mean": 0.0}],  # Missing required fields
+        "dict_tensors": {"bad": {"std_dev": 1.0}},  # Missing required fields
+        "set_tensors": [{"size": -1}],  # Invalid size
+        "tuple_tensors": [{"low": 1.0, "high": 0.0}],  # Invalid range
     }
 
     try:
-        TensorList.model_validate(invalid_list_data)
-        assert False, "Should have raised ValueError for invalid tensor spec"
+        TensorContainers.model_validate(invalid_data)
+        assert False, "Should have raised ValueError"
     except ValueError:
         pass
 

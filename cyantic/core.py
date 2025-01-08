@@ -47,31 +47,52 @@ class CyanticModel(BaseModel):
     @staticmethod
     def _get_fields_requiring_validation(hints: dict[str, Any]) -> set[str]:
         """Get fields that need construction."""
+        def needs_validation(type_):
+            if BlueprintRegistry.get_blueprints(type_):
+                return True
+            if not hasattr(type_, "__origin__"):
+                return False
+            # Check if it's a container type
+            origin = type_.__origin__
+            if origin in (list, dict, set, tuple):
+                # For dict, only check values
+                if origin is dict:
+                    value_type = get_args(type_)[1]
+                    return needs_validation(value_type)
+                # For other containers, check their contained type
+                contained_type = get_args(type_)[0]
+                return needs_validation(contained_type)
+            return False
+
         return {
-            name
-            for name, type_ in hints.items()
-            if (
-                BlueprintRegistry.get_blueprints(type_)
-                or (
-                    hasattr(type_, "__origin__")
-                    and type_.__origin__ is list
-                    and BlueprintRegistry.get_blueprints(get_args(type_)[0])
-                )
-            )
+            name for name, type_ in hints.items() 
+            if needs_validation(type_)
         }
 
     @staticmethod
-    def _validate_list_field(
-        field_name: str, field_value: list, list_type: type
-    ) -> list:
-        """Validate and build a list field."""
+    def _validate_container_field(
+        field_name: str, 
+        field_value: Any,
+        container_type: type,
+        value_type: type
+    ) -> Any:
+        """Validate and build container field (list, set, tuple, dict)."""
         try:
-            return [
-                CyanticModel.try_build(list_type, item)
-                if isinstance(item, dict)
-                else item
-                for item in field_value
-            ]
+            if container_type is dict:
+                return {
+                    k: (CyanticModel.try_build(value_type, v)
+                       if isinstance(v, dict)
+                       else v)
+                    for k, v in field_value.items()
+                }
+            elif container_type in (list, set, tuple):
+                validated = [
+                    CyanticModel.try_build(value_type, item)
+                    if isinstance(item, dict)
+                    else item
+                    for item in field_value
+                ]
+                return container_type(validated)
         except ValueError as e:
             raise ValueError(f"Error building item in {field_name}: {str(e)}")
 
@@ -117,20 +138,25 @@ class CyanticModel(BaseModel):
             requires_construction = field_name in fields_requiring_validation
 
             if requires_construction:
-                # Handle lists of cyantic types first
-                if isinstance(field_value, list):
-                    list_type = get_args(hints[field_name])[0]
-                    if BlueprintRegistry.get_blueprints(list_type):
-                        v[field_name] = CyanticModel._validate_list_field(
-                            field_name, field_value, list_type
-                        )
-                    continue
-
-                # For non-list fields, skip if value is already of the target type
                 raw_type = CyanticModel._get_raw_type(field_type)
+                
+                # Handle container types
+                if hasattr(field_type, "__origin__"):
+                    origin = field_type.__origin__
+                    if origin in (list, dict, set, tuple):
+                        type_args = get_args(field_type)
+                        value_type = type_args[1] if origin is dict else type_args[0]
+                        if BlueprintRegistry.get_blueprints(value_type):
+                            v[field_name] = CyanticModel._validate_container_field(
+                                field_name, field_value, origin, value_type
+                            )
+                            continue
+
+                # Skip if value is already of the target type
                 if isinstance(field_value, raw_type):
                     continue
 
+                # Handle direct blueprint types
                 if isinstance(field_value, dict):
                     try:
                         v[field_name] = CyanticModel.try_build(field_type, field_value)
