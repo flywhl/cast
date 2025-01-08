@@ -1,60 +1,14 @@
-import importlib
-from contextlib import contextmanager
-from threading import local
-from typing import Optional, TypeVar, Generic, Any, get_type_hints, get_args
+import logging
+from typing import TypeVar, Generic, Any, get_type_hints, get_args
 from pydantic import BaseModel, ConfigDict, GetCoreSchemaHandler, ValidationError
 from pydantic_core import core_schema
 
+from .context import ValidationContext
+from .reftag import REFTAG_PREFIX, RefTagRegistry
+
+logger = logging.getLogger(__name__)
+
 T = TypeVar("T")
-
-
-class ValidationContext:
-    """Thread-local storage for validation context."""
-
-    _context = local()
-
-    @classmethod
-    @contextmanager
-    def root_data(cls, data: dict):
-        """Store the root data during validation."""
-        # Initialize depth counter if needed
-        if not hasattr(cls._context, "depth"):
-            cls._context.depth = 0
-
-        # Set data only at top level
-        if cls._context.depth == 0 and not hasattr(cls._context, "data"):
-            cls._context.data = data
-
-        cls._context.depth += 1
-        try:
-            yield
-        finally:
-            cls._context.depth -= 1
-            # Only clean up data when unwinding the top level
-            if cls._context.depth == 0 and hasattr(cls._context, "data"):
-                del cls._context.data
-
-    @classmethod
-    def get_root_data(cls) -> Optional[dict]:
-        """Get the current root data."""
-        return getattr(cls._context, "data", None)
-
-    @classmethod
-    def get_nested_value(cls, path: str) -> Any:
-        """Get a value from the root data using dot notation path."""
-        data = cls.get_root_data()
-        if not data:
-            raise ValueError(
-                f"Cannot get value at {path}, because there is no validation context data."
-            )
-        keys = path.split(".")
-        for key in keys:
-            if not isinstance(data, dict):
-                raise ValueError(f"Cannot traverse path {path}: {key} is not a dict")
-            if key not in data:
-                raise ValueError(f"Key {key} not found in path {path}")
-            data = data[key]
-        return data
 
 
 class CastRegistry:
@@ -127,24 +81,12 @@ class CastModel(BaseModel):
         )
 
     @classmethod
-    def _process_import_reference(cls, path: str) -> Any:
-        module_path, attr = path.rsplit(".", 1)
-        try:
-            module = importlib.import_module(module_path)
-        except ImportError as e:
-            raise ValueError(path) from e
-        return getattr(module, attr)
-
-    @classmethod
     def _process_reference(cls, reference: str) -> Any:
-        assert reference.startswith("@")
-        ref_type, ref_value = reference[1:].split(":")  # slice out the @-prefix
-        if ref_type == "import":
-            return cls._process_import_reference(ref_value)
-        elif ref_type == "value":
-            return ValidationContext.get_nested_value(ref_value)
-        else:
-            raise ValueError(f"Unknown reference type: {ref_type}")
+        logger.debug(f"Processing reference: {reference}")
+        assert reference.startswith(REFTAG_PREFIX)
+        tag, value = reference[1:].split(":")  # slice out the @-prefix
+        handler = RefTagRegistry.get_handler(tag)
+        return handler(value, ValidationContext)
 
     @classmethod
     def validate_cast_fields(
@@ -230,9 +172,6 @@ class CastModel(BaseModel):
 
         hints = get_type_hints(cls)
         fields_requiring_validation = cls._get_fields_requiring_validation(hints)
-
-        if not fields_requiring_validation:
-            return schema
 
         return core_schema.chain_schema(
             [
