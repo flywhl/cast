@@ -38,9 +38,11 @@ class RefTagRegistry:
 
 def reftag(tag: str):
     """Decorator to register a reference tag handler function."""
+
     def decorator(handler: Callable):
         RefTagRegistry.register(tag, handler)
         return handler
+
     return decorator
 
 

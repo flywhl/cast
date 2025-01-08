@@ -11,51 +11,51 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-class CastRegistry:
-    """Global registry mapping types to their cast classes."""
+class BlueprintRegistry:
+    """Global registry mapping types to their blueprints."""
 
-    _casts: dict[type, list[type["Cast"]]] = {}
-
-    @classmethod
-    def register(cls, target_type: type, cast_type: type["Cast"]):
-        """Register a cast class for a target type."""
-        if target_type not in cls._casts:
-            cls._casts[target_type] = []
-        cls._casts[target_type].append(cast_type)
+    _blueprints: dict[type, list[type["Blueprint"]]] = {}
 
     @classmethod
-    def get_casts(cls, target_type: type) -> list[type["Cast"]]:
-        """Get all registered casts for a type."""
-        return cls._casts.get(target_type, [])
+    def register(cls, target_type: type, blueprint_type: type["Blueprint"]):
+        """Register a blueprint for a target type."""
+        if target_type not in cls._blueprints:
+            cls._blueprints[target_type] = []
+        cls._blueprints[target_type].append(blueprint_type)
+
+    @classmethod
+    def get_blueprints(cls, target_type: type) -> list[type["Blueprint"]]:
+        """Get all registered blueprints for a type."""
+        return cls._blueprints.get(target_type, [])
 
 
-def for_type(target_type: type):
-    """Decorator to register a cast class for a given type."""
+def blueprint(target_type: type):
+    """Decorator to register a blueprint for a given type."""
 
-    def decorator(cast_type: type["Cast"]):
-        CastRegistry.register(target_type, cast_type)
-        return cast_type
+    def decorator(blueprint_type: type["Blueprint"]):
+        BlueprintRegistry.register(target_type, blueprint_type)
+        return blueprint_type
 
     return decorator
 
 
-class CastModel(BaseModel):
-    """Base model class that automatically applies cast validation to fields."""
+class CyanticModel(BaseModel):
+    """Base model class that automatically builds fields."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @staticmethod
     def _get_fields_requiring_validation(hints: dict[str, Any]) -> set[str]:
-        """Get fields that need cast validation."""
+        """Get fields that need construction."""
         return {
             name
             for name, type_ in hints.items()
             if (
-                CastRegistry.get_casts(type_)
+                BlueprintRegistry.get_blueprints(type_)
                 or (
                     hasattr(type_, "__origin__")
                     and type_.__origin__ is list
-                    and CastRegistry.get_casts(get_args(type_)[0])
+                    and BlueprintRegistry.get_blueprints(get_args(type_)[0])
                 )
             )
         }
@@ -67,7 +67,9 @@ class CastModel(BaseModel):
         """Validate and build a list field."""
         try:
             return [
-                CastModel.try_build(list_type, item) if isinstance(item, dict) else item
+                CyanticModel.try_build(list_type, item)
+                if isinstance(item, dict)
+                else item
                 for item in field_value
             ]
         except ValueError as e:
@@ -89,10 +91,10 @@ class CastModel(BaseModel):
         return handler(value, ValidationContext)
 
     @classmethod
-    def validate_cast_fields(
+    def validate_cyantic_fields(
         cls, v: Any, fields_requiring_validation: set[str], hints: dict[str, Any]
     ) -> Any:
-        """Validate and build cast fields in a model."""
+        """Validate and build cyantic fields in a model."""
         if not isinstance(v, dict):
             return v
 
@@ -108,31 +110,30 @@ class CastModel(BaseModel):
             if requires_resolution:
                 v[field_name] = cls._process_reference(field_value)
 
-        # Cast Loop
         for field_name, field_value in v.items():
             if field_name not in hints:
                 continue
             field_type = hints[field_name]
-            requires_cast = field_name in fields_requiring_validation
+            requires_construction = field_name in fields_requiring_validation
 
-            if requires_cast:
-                # Handle lists of cast types first
+            if requires_construction:
+                # Handle lists of cyantic types first
                 if isinstance(field_value, list):
                     list_type = get_args(hints[field_name])[0]
-                    if CastRegistry.get_casts(list_type):
-                        v[field_name] = CastModel._validate_list_field(
+                    if BlueprintRegistry.get_blueprints(list_type):
+                        v[field_name] = CyanticModel._validate_list_field(
                             field_name, field_value, list_type
                         )
                     continue
 
                 # For non-list fields, skip if value is already of the target type
-                raw_type = CastModel._get_raw_type(field_type)
+                raw_type = CyanticModel._get_raw_type(field_type)
                 if isinstance(field_value, raw_type):
                     continue
 
                 if isinstance(field_value, dict):
                     try:
-                        v[field_name] = CastModel.try_build(field_type, field_value)
+                        v[field_name] = CyanticModel.try_build(field_type, field_value)
                     except ValueError as e:
                         raise ValueError(f"Error building {field_name}: {str(e)}")
 
@@ -140,18 +141,18 @@ class CastModel(BaseModel):
 
     @classmethod
     def try_build(cls, target_type: type, value: dict) -> Any:
-        """Try each registered cast in order until one works."""
-        casts = CastRegistry.get_casts(target_type)
-        if not casts:
-            raise ValueError(f"No casts registered for type {target_type}")
+        """Try each registered blueprint in order until one works."""
+        blueprints = BlueprintRegistry.get_blueprints(target_type)
+        if not blueprints:
+            raise ValueError(f"No blueprint registered for type {target_type}")
 
         errors = []
-        for cast_type in casts:
+        for blueprint_type in blueprints:
             try:
-                cast = cast_type.model_validate(value)
-                return cast.build()
+                blueprint = blueprint_type.model_validate(value)
+                return blueprint.build()
             except (ValidationError, ValueError) as e:
-                errors.append(f"{cast_type.__name__}: {str(e)}")
+                errors.append(f"{blueprint_type.__name__}: {str(e)}")
                 continue
             except Exception as e:
                 # Don't catch unexpected errors
@@ -159,7 +160,7 @@ class CastModel(BaseModel):
 
         error_msg = "\n".join(f"- {err}" for err in errors)
         raise ValueError(
-            f"No compatible cast found for {target_type}. Tried:\n{error_msg}"
+            f"No compatible blueprint found for {target_type}. Tried:\n{error_msg}"
         )
 
     @classmethod
@@ -176,7 +177,7 @@ class CastModel(BaseModel):
         return core_schema.chain_schema(
             [
                 core_schema.no_info_plain_validator_function(
-                    lambda v: cls.validate_cast_fields(
+                    lambda v: cls.validate_cyantic_fields(
                         v, fields_requiring_validation, hints
                     )
                 ),
@@ -186,7 +187,7 @@ class CastModel(BaseModel):
 
     @classmethod
     def model_validate(cls, obj: Any, *args, **kwargs):
-        """Validate and build cast fields in a model."""
+        """Validate and build the model."""
         if not isinstance(obj, dict):
             return super().model_validate(obj, *args, **kwargs)
 
@@ -194,7 +195,7 @@ class CastModel(BaseModel):
             return super().model_validate(obj, *args, **kwargs)
 
 
-class Cast(CastModel, Generic[T]):
+class Blueprint(CyanticModel, Generic[T]):
     """Base class for parameter specifications that can be built into instances."""
 
     def build(self) -> T:

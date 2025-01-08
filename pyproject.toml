@@ -1,7 +1,7 @@
 [project]
-name = "cast"
+name = "cyantic"
 version = "0.1.0"
-description = "Add your description here"
+description = "Use Pydantic to build complex types from simple parameters."
 authors = [
     { name = "Rory Byrne", email = "rory@rory.bio" }
 ]
