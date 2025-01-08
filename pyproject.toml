@@ -33,7 +33,7 @@ Documentation = "https://github.com/flywhl/cyantic#readme"
 "Bug Tracker" = "https://github.com/flywhl/cyantic/issues"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
