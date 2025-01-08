@@ -21,3 +21,5 @@ lint-file file:
     - ruff {{file}}
     - pyright {{file}}
 
+bump part:
+    - bump-my-version bump {{part}} pyproject.toml
