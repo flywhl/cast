@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/3b7c8f7f-d55b-40aa-8b32-b6ec4bd8eab1">
+  <img src="https://github.com/user-attachments/assets/6004aee7-0a64-4cc4-a7aa-b6790fedccc7">
 </p>
 <p align="center">
   <b>Use Pydantic to build complex types from parameter specifications.</b>
