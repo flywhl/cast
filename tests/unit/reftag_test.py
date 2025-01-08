@@ -4,11 +4,10 @@ import statistics
 from typing import Sequence, Union, overload
 from pydantic import BaseModel, Field, ValidationError
 
-from cast import CastModel, Cast
-import cast
+from cyantic import Blueprint, blueprint, CyanticModel
 
 
-class SimpleModel(CastModel):
+class SimpleModel(CyanticModel):
     """A simple model for testing reftags."""
 
     name: str
@@ -44,9 +43,9 @@ class Tensor(BaseModel):
         return self.data[idx]
 
 
-@cast.for_type(Tensor)
-class NormalTensor(Cast[Tensor]):
-    """Cast for creating tensors from a normal distribution."""
+@blueprint(Tensor)
+class NormalTensor(Blueprint[Tensor]):
+    """Blueprint for creating tensors from a normal distribution."""
 
     mean: float
     std_dev: float
@@ -58,9 +57,9 @@ class NormalTensor(Cast[Tensor]):
         )
 
 
-@cast.for_type(Tensor)
-class UniformTensor(Cast[Tensor]):
-    """Cast for creating tensors with values from a uniform distribution."""
+@blueprint(Tensor)
+class UniformTensor(Blueprint[Tensor]):
+    """Blueprint for creating tensors with values from a uniform distribution."""
 
     low: float
     high: float
@@ -72,8 +71,8 @@ class UniformTensor(Cast[Tensor]):
         )
 
 
-class DataContainer(CastModel):
-    """Example model using cast-enabled tensor."""
+class DataContainer(CyanticModel):
+    """Example model using blueprint-enabled tensor."""
 
     values: Tensor
 
@@ -85,15 +84,15 @@ class NestedConfig(BaseModel):
     scale: float
 
 
-class NestedTensorContainer(CastModel):
-    """A CastModel that will be nested inside another CastModel."""
+class NestedTensorContainer(CyanticModel):
+    """A CyanticModel that will be nested inside another CyanticModel."""
 
     config: NestedConfig
     tensor: Tensor
 
 
-class ComplexDataContainer(CastModel):
-    """A CastModel containing both regular fields and nested CastModels."""
+class ComplexDataContainer(CyanticModel):
+    """A CyanticModel containing both regular fields and nested CyanticModels."""
 
     name: str
     primary: Tensor

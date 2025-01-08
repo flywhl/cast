@@ -1,15 +1,9 @@
-from cast.context import ValidationContext
+from cyantic.context import ValidationContext
 
 
 def test_validation_context():
     """Test the ValidationContext class functionality."""
-    test_data = {
-        "outer": {
-            "inner": {
-                "value": 42
-            }
-        }
-    }
+    test_data = {"outer": {"inner": {"value": 42}}}
 
     # Test basic context management
     with ValidationContext.root_data(test_data):

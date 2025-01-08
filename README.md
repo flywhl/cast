@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/dcc17405-10da-45f9-99f9-47ba9e1e9e72">
+  <img src="https://github.com/user-attachments/assets/6004aee7-0a64-4cc4-a7aa-b6790fedccc7">
 </p>
 <p align="center">
   <b>Use Pydantic to build complex types from parameter specifications.</b>
@@ -8,28 +8,28 @@
 
 ## Installation
 
-* `uv add git+https://github.com/flywhl/cast`
+* `uv add git+https://github.com/flywhl/cyantic`
 
 ## Features
 
 * Build complex objects using intermediate Pydantic models.
 * Reference other values using `@value:x.y.z`
 * Import objects using `@import:x.y.z`
+* Define custom `@reftag` handlers (see tests)
 
 ## Usage
 
 ```python
-import cast
-from cast import Cast, CastModel
+from cyantic import Blueprint, blueprint, CyanticModel
 from torch import Tensor
 import torch
 import yaml
 
 # 1. Create and register some useful parameterisations
-#       (or soon install from PyPi, i.e. `rye add cast-torch`)
+#       (or soon install from PyPi, i.e. `rye add cyantic-torch`)
 
-@cast.for_type(Tensor)
-class NormalTensor(Cast[Tensor]):
+@blueprint(Tensor)
+class NormalTensor(Blueprint[Tensor]):
 
     mean: float
     std: float
@@ -38,8 +38,8 @@ class NormalTensor(Cast[Tensor]):
     def build(self) -> Tensor:
         return torch.normal(self.mean, self.std, size=self.size)
 
-@cast.for_type(Tensor)
-class UniformTensor(Cast[Tensor]):
+@blueprint(Tensor)
+class UniformTensor(Blueprint[Tensor]):
     low: float
     high: float
     size: tuple[int, ...]
@@ -48,9 +48,9 @@ class UniformTensor(Cast[Tensor]):
       return torch.empty(self.size).uniform_(self.low, self.high)
 
 
-# 2. Write pydantic models using `CastModel` base class
+# 2. Write pydantic models using `CyanticModel` base class
 
-class MyModel(CastModel):
+class MyModel(CyanticModel):
     normal_tensor: Tensor
     uniform_tensor: Tensor
 
@@ -79,8 +79,8 @@ assert isinstance(my_model.uniform_tensor, Tensor)
 
 ## Development
 
-* `git clone https://github.com/flywhl/cast.git`
-* `cd cast`
+* `git clone https://github.com/flywhl/cyantic.git`
+* `cd cyantic`
 * `uv sync`
 
 ## Flywheel

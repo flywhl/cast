@@ -4,17 +4,16 @@ from typing import Sequence, Union, overload
 
 from pydantic import BaseModel, Field
 
-import cast
-from cast import Cast, CastModel
+from cyantic import Blueprint, blueprint, CyanticModel
 
 
-class SimpleModel(CastModel):
+class SimpleModel(CyanticModel):
     """A simple model for testing reftags."""
 
     name: str
 
 
-class CounterModel(CastModel):
+class CounterModel(CyanticModel):
     """A model for testing stateful reftags."""
 
     first: int
@@ -55,9 +54,9 @@ class Tensor(BaseModel):
         return self.data[idx]
 
 
-@cast.for_type(Tensor)
-class NormalTensor(Cast[Tensor]):
-    """Cast for creating tensors from a normal distribution."""
+@blueprint(Tensor)
+class NormalTensor(Blueprint[Tensor]):
+    """Blueprint for creating tensors from a normal distribution."""
 
     mean: float
     std_dev: float
@@ -69,9 +68,9 @@ class NormalTensor(Cast[Tensor]):
         )
 
 
-@cast.for_type(Tensor)
-class UniformTensor(Cast[Tensor]):
-    """Cast for creating tensors with values from a uniform distribution."""
+@blueprint(Tensor)
+class UniformTensor(Blueprint[Tensor]):
+    """Blueprint for creating tensors with values from a uniform distribution."""
 
     low: float
     high: float
@@ -83,7 +82,7 @@ class UniformTensor(Cast[Tensor]):
         )
 
 
-class DataContainer(CastModel):
+class DataContainer(CyanticModel):
     """Example model using cast-enabled tensor."""
 
     values: Tensor
@@ -112,7 +111,7 @@ def test_cast_build():
         pass
 
 
-class TensorList(CastModel):
+class TensorList(CyanticModel):
     """A model containing a list of tensors."""
 
     tensors: list[Tensor]
@@ -183,24 +182,25 @@ class NestedConfig(BaseModel):
     scale: float
 
 
-class NestedTensorContainer(CastModel):
-    """A CastModel that will be nested inside another CastModel."""
+class NestedTensorContainer(CyanticModel):
+    """A CyanticModel that will be nested inside another CyanticModel."""
 
     config: NestedConfig
     tensor: Tensor
 
 
-class ComplexDataContainer(CastModel):
-    """A CastModel containing both regular fields and nested CastModels."""
+class ComplexDataContainer(CyanticModel):
+    """A CyanticModel containing both regular fields and nested CyanticModels."""
 
     name: str
     primary: Tensor
     secondary: NestedTensorContainer
 
 
-def test_nested_cast_models():
-    """Test nested CastModels with mixed BaseModel types."""
-    # Test nested structure with both normal and cast fields
+def test_nested_blueprint_models():
+    """Test nested CyanticModels with mixed BaseModel types."""
+    # Test nested structure with both normal and blueprint fields
+
     nested_data = {
         "name": "test_complex",
         "primary": {"mean": 0.0, "std_dev": 1.0, "size": 50},
@@ -240,8 +240,8 @@ def test_mixed_model_validation():
     except ValueError:
         pass
 
-    # Test validation with invalid cast parameters
-    invalid_cast_data = {
+    # Test validation with invalid parameters
+    invalid_data = {
         "name": "test_invalid",
         "primary": {"mean": 0.0, "std_dev": 1.0, "size": -50},  # Invalid size
         "secondary": {
@@ -251,15 +251,15 @@ def test_mixed_model_validation():
     }
 
     try:
-        ComplexDataContainer.model_validate(invalid_cast_data)
+        ComplexDataContainer.model_validate(invalid_data)
         assert False, "Should have raised ValueError for negative size"
     except ValueError:
         pass
 
 
-def test_cast_type_inference():
-    """Test that the cast system correctly infers and applies different cast types."""
-    # Test that both NormalTensor and UniformTensor casts work in the same model
+def test_blueprint_type_inference():
+    """Test that we correctly infer and apply different blueprints."""
+    # Test that both NormalTensor and UniformTensor blueprints work in the same model
     mixed_data = {
         "name": "test_mixed",
         "primary": {"mean": 0.0, "std_dev": 1.0, "size": 100},
@@ -271,7 +271,7 @@ def test_cast_type_inference():
 
     model = ComplexDataContainer.model_validate(mixed_data)
 
-    # Verify that different cast types were correctly applied
+    # Verify that different blueprints were correctly applied
     assert len(model.primary) == 100
     assert len(model.secondary.tensor) == 100
 
@@ -284,25 +284,25 @@ def test_cast_type_inference():
     assert all(isinstance(x, float) for x in model.secondary.tensor.data)
 
 
-class TensorWrapper(CastModel):
-    """A simple CastModel that will be nested in a BaseModel."""
+class TensorWrapper(CyanticModel):
+    """A simple CyanticModel that will be nested in a BaseModel."""
 
     tensor: Tensor
 
 
 class ConfigWithTensor(BaseModel):
-    """A BaseModel that contains a CastModel."""
+    """A BaseModel that contains a CyanticModel."""
 
     name: str
     description: str | None = None
     data: TensorWrapper
 
 
-def test_castmodel_in_basemodel():
-    """Test a CastModel nested inside a regular Pydantic BaseModel."""
+def test_cyanticmodel_in_basemodel():
+    """Test a CyanticModel nested inside a regular Pydantic BaseModel."""
     config_data = {
         "name": "test_config",
-        "description": "Testing CastModel inside BaseModel",
+        "description": "Testing CyanticModel inside BaseModel",
         "data": {"tensor": {"mean": 0.0, "std_dev": 1.0, "size": 50}},
     }
 
@@ -310,14 +310,14 @@ def test_castmodel_in_basemodel():
 
     # Verify BaseModel fields
     assert model.name == "test_config"
-    assert model.description == "Testing CastModel inside BaseModel"
+    assert model.description == "Testing CyanticModel inside BaseModel"
 
-    # Verify the nested CastModel types and sizes
+    # Verify the nested CyanticModel types and sizes
     assert isinstance(model.data.tensor, Tensor)
     assert len(model.data.tensor) == 50
     assert all(isinstance(x, float) for x in model.data.tensor.data)
 
-    # Test validation with invalid nested cast
+    # Test validation with invalid nested blueprint
     invalid_data = {
         "name": "test_invalid",
         "data": {

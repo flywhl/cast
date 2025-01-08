@@ -7,14 +7,14 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-commit]
-      - files: ^cast/
+      - files: ^cyantic/
         id: ruff
         name: ruff
         entry: rye run ruff format
         language: system
         stages: [pre-commit]
         types: [file, python]
-      - files: ^cast/
+      - files: ^cyantic/
         id: pyright
         name: pyright
         entry: rye run pyright
