@@ -47,6 +47,7 @@ class CyanticModel(BaseModel):
     @staticmethod
     def _get_fields_requiring_validation(hints: dict[str, Any]) -> set[str]:
         """Get fields that need construction."""
+
         def needs_validation(type_):
             if BlueprintRegistry.get_blueprints(type_):
                 return True
@@ -64,25 +65,21 @@ class CyanticModel(BaseModel):
                 return needs_validation(contained_type)
             return False
 
-        return {
-            name for name, type_ in hints.items() 
-            if needs_validation(type_)
-        }
+        return {name for name, type_ in hints.items() if needs_validation(type_)}
 
     @staticmethod
     def _validate_container_field(
-        field_name: str, 
-        field_value: Any,
-        container_type: type,
-        value_type: type
+        field_name: str, field_value: Any, container_type: type, value_type: type
     ) -> Any:
         """Validate and build container field (list, set, tuple, dict)."""
         try:
             if container_type is dict:
                 return {
-                    k: (CyanticModel.try_build(value_type, v)
-                       if isinstance(v, dict)
-                       else v)
+                    k: (
+                        CyanticModel.try_build(value_type, v)
+                        if isinstance(v, dict)
+                        else v
+                    )
                     for k, v in field_value.items()
                 }
             elif container_type in (list, set, tuple):
@@ -139,7 +136,7 @@ class CyanticModel(BaseModel):
 
             if requires_construction:
                 raw_type = CyanticModel._get_raw_type(field_type)
-                
+
                 # Handle container types
                 if hasattr(field_type, "__origin__"):
                     origin = field_type.__origin__
@@ -181,7 +178,7 @@ class CyanticModel(BaseModel):
                 errors.append(f"{blueprint_type.__name__}: {str(e)}")
                 continue
             except Exception as e:
-                # Don't catch unexpected errors
+                logger.error(e)
                 raise
 
         error_msg = "\n".join(f"- {err}" for err in errors)

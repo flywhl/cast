@@ -3,21 +3,21 @@ repos:
     hooks:
       - id: test
         name: test
-        entry: rye run pytest
+        entry: uv run pytest
         language: system
         pass_filenames: false
         stages: [pre-commit]
       - files: ^cyantic/
         id: ruff
         name: ruff
-        entry: rye run ruff format
+        entry: uv run ruff format cyantic
         language: system
         stages: [pre-commit]
         types: [file, python]
       - files: ^cyantic/
         id: pyright
         name: pyright
-        entry: rye run pyright
+        entry: uv run pyright cyantic
         language: system
         stages: [pre-commit]
         types: [file, python]
