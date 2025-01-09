@@ -8,10 +8,11 @@
 
 Cyantic lets you build complex types from simple blueprints, using Pydantic.
 
-* Build complex objects using intermediate Pydantic models.
-* Reference other values using `@value:x.y.z`
-* Import objects using `@import:x.y.z`
-* Define custom `@hook` handlers (see tests)
+* Using intermediate Pydantic models as `Blueprints`, giving type safety and validation for parameters.
+* Reference other values using `@value:x.y.z`.
+* Import objects using `@import:x.y.z`.
+* Inject environment variables using `@env:MY_VAR`.
+* ...and define custom `@hook` handlers using a simple API.
 
 ## Installation
 
@@ -81,7 +82,7 @@ uniform_tensor:
     size: @value:common.size
 """
 
-# 4. Receive objects built from the parameterisations.
+# 5. Receive objects built from the parameterisations.
 
 my_model = MyModel.model_validate(yaml.safe_load(some_yaml))
 assert isinstance(my_model.normal_tensor, Tensor)
