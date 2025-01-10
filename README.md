@@ -1,6 +1,11 @@
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/4ce903ef-ae04-4c9f-9a17-ad6932472de7">
-</p>
+<div align="center">
+  
+  ![logo](https://github.com/user-attachments/assets/4ce903ef-ae04-4c9f-9a17-ad6932472de7)
+
+  [Discord](https://discord.gg/kTkF2e69fH) • [Website](https://flywhl.dev) • [Installation](#installation)
+  <br/>
+  <br/>
+</div>
 
 > The [cyanotype](https://en.wikipedia.org/wiki/Cyanotype) process, which gave birth to the "blueprint", uses iron salts and UV light to transform simple negatives into deep Prussian blue artwork.
 
