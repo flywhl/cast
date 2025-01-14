@@ -99,7 +99,7 @@ wheels = [
 
 [[package]]
 name = "cyantic"
-version = "0.1.4.dev1+g51aed1b.d20250108"
+version = "0.3.1.dev4+g300e2fd.d20250114"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
